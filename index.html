@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>曲再生サイト</title>
+  <title>曲再生</title>
   <style>
     body {
       background-color: #f7f3e9;
@@ -15,14 +15,60 @@
     header {
       background-color: #8bbccc;
       padding: 1rem;
-      text-align: center;
       color: #fff;
-      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .creator-card {
+      display: flex;
+      align-items: center;
+      background-color: rgba(255,255,255,0.2);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .creator-card img {
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      margin-right: 8px;
+    }
+    .creator-info {
+      display: flex;
+      flex-direction: column;
+    }
+    .creator-name {
+      font-weight: bold;
+      font-size: 14px;
+      color: #fff;
+    }
+    .creator-id {
+      font-size: 12px;
+      color: #f0f0f0;
     }
     main {
       max-width: 900px;
       margin: auto;
       padding: 1.5rem;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+    .controls button {
+      background-color: #8bbccc;
+      border: none;
+      padding: 6px 12px;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .controls input {
+      flex: 1;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
     }
     ul {
       list-style: none;
@@ -43,63 +89,26 @@
       width: 100%;
       margin-top: 1.5rem;
     }
-    .top-controls {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 1rem;
-    }
-    .top-controls button {
-      padding: 6px 12px;
-      background-color: #8bbccc;
-      border: none;
-      color: #fff;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    .top-controls input {
-      flex: 1;
-      padding: 6px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-    }
-    .creator-card {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      align-items: center;
-      background-color: rgba(255,255,255,0.3);
-      padding: 4px 8px;
-      border-radius: 6px;
-    }
-    .creator-card img {
-      border-radius: 50%;
-      width: 32px;
-      height: 32px;
-      margin-right: 8px;
-    }
     #auth {
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       height: 100vh;
-      flex-direction: column;
+      background-color: #f7f3e9;
     }
     #auth input {
       padding: 8px;
       font-size: 16px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
+      margin-bottom: 10px;
     }
     #auth button {
       padding: 8px 14px;
-      margin-top: 10px;
-      font-size: 14px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
       background-color: #8bbccc;
+      border: none;
       color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -111,45 +120,41 @@
   <button onclick="checkPassword()">送信</button>
 </div>
 
-<div id="content" style="display:none;">
+<div id="app" style="display:none;">
   <header>
     <h1>曲再生サイト</h1>
     <div class="creator-card">
-      <img src="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png" alt="icon">
-      <div>
-        <div><strong>togane_dev</strong></div>
-        <div style="font-size: 12px;">1401421639106957464</div>
+      <img src="discord_icon.png" alt="icon">
+      <div class="creator-info">
+        <span class="creator-name">togane_dev</span>
+        <span class="creator-id">1401421639106957464</span>
       </div>
     </div>
   </header>
   <main>
-    <div class="top-controls">
-      <button onclick="playRandom()">ランダム</button>
+    <div class="controls">
       <button onclick="prevTrack()">戻る</button>
       <button onclick="nextTrack()">スキップ</button>
+      <button onclick="playRandom()">ランダム</button>
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
     </div>
-    <h2 id="track-title">曲一覧</h2>
     <ul id="track-list">読み込み中...</ul>
     <audio id="player" controls></audio>
   </main>
 </div>
 
 <script>
-const repoOwner = "toganedev";
-const repoName = "D";
-const baseURL = `https://${repoOwner}.github.io/${repoName}/`;
 let tracks = [];
 let currentIndex = 0;
 
 async function checkPassword() {
-  const res = await fetch(`${baseURL}password.txt`);
+  const res = await fetch("password.txt");
   const text = await res.text();
-  const lines = text.split(/\r?\n/).map(l => l.trim());
-  const input = document.getElementById("password").value.trim();
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const input = document.getElementById("password").value;
   if (lines.includes(input)) {
     document.getElementById("auth").style.display = "none";
-    document.getElementById("content").style.display = "block";
+    document.getElementById("app").style.display = "block";
     loadTracks();
   } else {
     alert("パスワードが違います");
@@ -157,22 +162,18 @@ async function checkPassword() {
 }
 
 async function loadTracks() {
-  const listContainer = document.getElementById("track-list");
-  const player = document.getElementById("player");
-  const res = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents`);
+  const res = await fetch("https://api.github.com/repos/toganedev/D/contents");
   const files = await res.json();
-  tracks = files.filter(file => file.name.endsWith(".mp4") || file.name.endsWith(".m4a"))
-                .map(file => file.name);
+  tracks = files.filter(f => f.name.endsWith(".mp4") || f.name.endsWith(".m4a"))
+                .map(f => f.name);
+  const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
   tracks.forEach((name, index) => {
     const li = document.createElement("li");
     const link = document.createElement("a");
     link.href = "#";
     link.textContent = name;
-    link.addEventListener("click", e => {
-      e.preventDefault();
-      playTrack(index);
-    });
+    link.onclick = e => { e.preventDefault(); playTrack(index); };
     li.appendChild(link);
     listContainer.appendChild(li);
   });
@@ -181,9 +182,8 @@ async function loadTracks() {
 function playTrack(index) {
   if (index < 0 || index >= tracks.length) return;
   currentIndex = index;
-  document.getElementById("track-title").textContent = tracks[index];
   const player = document.getElementById("player");
-  player.src = `${baseURL}${encodeURIComponent(tracks[index])}`;
+  player.src = encodeURIComponent(tracks[index]);
   player.play();
   player.onended = () => nextTrack();
 }
@@ -213,6 +213,5 @@ function filterTracks() {
   }
 }
 </script>
-
 </body>
 </html>
