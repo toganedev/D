@@ -15,72 +15,28 @@
     header {
       background-color: #8bbccc;
       padding: 1rem;
-      color: #fff;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
+      color: #fff;
     }
-    .header-left {
-      display: flex;
-      flex-direction: column;
-    }
-    .header-left h1 {
+    header h1 {
       margin: 0;
-    }
-    .current-track {
-      font-size: 14px;
-      margin-top: 4px;
     }
     .creator-card {
       display: flex;
       align-items: center;
-      background-color: rgba(255,255,255,0.2);
-      padding: 4px 8px;
-      border-radius: 6px;
+      gap: 8px;
     }
     .creator-card img {
-      border-radius: 50%;
       width: 32px;
       height: 32px;
-      margin-right: 8px;
-    }
-    .creator-info {
-      display: flex;
-      flex-direction: column;
-    }
-    .creator-name {
-      font-weight: bold;
-      font-size: 14px;
-      color: #fff;
-    }
-    .creator-id {
-      font-size: 12px;
-      color: #f0f0f0;
+      border-radius: 50%;
     }
     main {
       max-width: 900px;
       margin: auto;
       padding: 1.5rem;
-    }
-    .controls {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 1rem;
-    }
-    .controls button {
-      background-color: #8bbccc;
-      border: none;
-      padding: 6px 12px;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .controls input {
-      flex: 1;
-      padding: 6px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
     }
     ul {
       list-style: none;
@@ -101,26 +57,66 @@
       width: 100%;
       margin-top: 1.5rem;
     }
+    .controls {
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+    .controls button {
+      background-color: #8bbccc;
+      border: none;
+      color: white;
+      padding: 0.4rem 0.8rem;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .controls button:hover {
+      background-color: #7aa9b6;
+    }
+    .search-bar {
+      margin-bottom: 1rem;
+    }
+    .search-bar input {
+      padding: 0.4rem;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      width: 100%;
+      box-sizing: border-box;
+    }
     #auth {
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       height: 100vh;
-      background-color: #f7f3e9;
     }
     #auth input {
       padding: 8px;
-      font-size: 16px;
-      margin-bottom: 10px;
+      margin-top: 8px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
     }
     #auth button {
       padding: 8px 14px;
-      background-color: #8bbccc;
+      margin-top: 8px;
+      font-size: 14px;
       border: none;
-      color: #fff;
       border-radius: 4px;
       cursor: pointer;
+      background-color: #8bbccc;
+      color: #fff;
+    }
+    .now-playing {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    .up-next {
+      margin-top: 0.3rem;
+      font-size: 14px;
+      color: #666;
     }
   </style>
 </head>
@@ -132,28 +128,29 @@
   <button onclick="checkPassword()">送信</button>
 </div>
 
-<div id="app" style="display:none;">
+<div id="main-content" style="display:none;">
   <header>
-    <div class="header-left">
-      <h1>曲再生サイト</h1>
-      <div class="current-track" id="now-playing">再生中: なし</div>
-      <div class="current-track" id="next-track">次の曲: なし</div>
-    </div>
+    <h1>曲再生サイト</h1>
     <div class="creator-card">
-      <img src="discord_icon.png" alt="icon">
-      <div class="creator-info">
-        <span class="creator-name">togane_dev</span>
-        <span class="creator-id">1401421639106957464</span>
+      <img src="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png" alt="icon">
+      <div>
+        <div>togane_dev</div>
+        <div style="font-size:12px;">1401421639106957464</div>
       </div>
     </div>
   </header>
   <main>
     <div class="controls">
+      <button onclick="playRandom()">ランダム</button>
       <button onclick="prevTrack()">戻る</button>
       <button onclick="nextTrack()">スキップ</button>
-      <button onclick="playRandom()">ランダム</button>
+    </div>
+    <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
     </div>
+    <div class="now-playing" id="now-playing">再生中: なし</div>
+    <div class="up-next" id="up-next">次の曲: なし</div>
+    <h2>曲一覧</h2>
     <ul id="track-list">読み込み中...</ul>
     <audio id="player" controls></audio>
   </main>
@@ -163,26 +160,36 @@
 let tracks = [];
 let filteredTracks = [];
 let currentIndex = 0;
+const repoOwner = "toganedev";
+const repoName = "D";
+const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/`;
 
 async function checkPassword() {
-  const res = await fetch("password.txt");
+  const input = document.getElementById("password").value.trim();
+  const res = await fetch(baseURL + "password.txt");
   const text = await res.text();
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  const input = document.getElementById("password").value;
+  const lines = text.split(/\r?\n/).map(l => l.trim());
   if (lines.includes(input)) {
     document.getElementById("auth").style.display = "none";
-    document.getElementById("app").style.display = "block";
+    document.getElementById("main-content").style.display = "block";
     loadTracks();
   } else {
     alert("パスワードが違います");
   }
 }
 
+document.getElementById("password").addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    checkPassword();
+  }
+});
+
 async function loadTracks() {
-  const res = await fetch("https://api.github.com/repos/toganedev/D/contents");
+  const res = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents`);
   const files = await res.json();
-  tracks = files.filter(f => f.name.endsWith(".mp4") || f.name.endsWith(".m4a"))
-                .map(f => f.name);
+  tracks = files
+    .filter(file => file.name.endsWith(".mp4") || file.name.endsWith(".m4a"))
+    .map(file => decodeURIComponent(file.name));
   filteredTracks = [...tracks];
   renderTrackList();
 }
@@ -190,12 +197,15 @@ async function loadTracks() {
 function renderTrackList() {
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
-  filteredTracks.forEach((name, index) => {
+  filteredTracks.forEach((file, index) => {
     const li = document.createElement("li");
     const link = document.createElement("a");
     link.href = "#";
-    link.textContent = name;
-    link.onclick = e => { e.preventDefault(); playTrack(index); };
+    link.textContent = file;
+    link.addEventListener("click", e => {
+      e.preventDefault();
+      playTrack(filteredTracks.indexOf(file));
+    });
     li.appendChild(link);
     listContainer.appendChild(li);
   });
@@ -204,23 +214,27 @@ function renderTrackList() {
 function playTrack(index) {
   if (index < 0 || index >= filteredTracks.length) return;
   currentIndex = index;
+  const trackName = filteredTracks[index];
   const player = document.getElementById("player");
-  player.src = encodeURIComponent(filteredTracks[index]);
+  player.src = baseURL + encodeURIComponent(trackName);
   player.play();
   updateNowPlaying();
   player.onended = () => nextTrack();
 }
 
+function updateNowPlaying() {
+  const now = filteredTracks[currentIndex] || "なし";
+  const next = filteredTracks[(currentIndex + 1) % filteredTracks.length] || "なし";
+  document.getElementById("now-playing").textContent = "再生中: " + now;
+  document.getElementById("up-next").textContent = "次の曲: " + next;
+}
+
 function nextTrack() {
-  let next = currentIndex + 1;
-  if (next >= filteredTracks.length) next = 0;
-  playTrack(next);
+  playTrack((currentIndex + 1) % filteredTracks.length);
 }
 
 function prevTrack() {
-  let prev = currentIndex - 1;
-  if (prev < 0) prev = filteredTracks.length - 1;
-  playTrack(prev);
+  playTrack((currentIndex - 1 + filteredTracks.length) % filteredTracks.length);
 }
 
 function playRandom() {
@@ -232,12 +246,6 @@ function filterTracks() {
   const query = document.getElementById("search").value.toLowerCase();
   filteredTracks = tracks.filter(t => t.toLowerCase().includes(query));
   renderTrackList();
-}
-
-function updateNowPlaying() {
-  document.getElementById("now-playing").textContent = "再生中: " + (filteredTracks[currentIndex] || "なし");
-  const nextIndex = (currentIndex + 1) % filteredTracks.length;
-  document.getElementById("next-track").textContent = "次の曲: " + (filteredTracks[nextIndex] || "なし");
 }
 </script>
 </body>
