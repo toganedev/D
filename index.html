@@ -1,152 +1,217 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>曲プレイヤー</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
-    <style>
-        body {
-            background-color: #2f3136;
-            color: #fff;
-        }
-        nav, header, main {
-            background-color: #36393f;
-            border-radius: 8px;
-            padding: 1rem;
-        }
-        #auth {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-        #player-container {
-            display: none;
-        }
-        .author-card {
-            display: flex;
-            align-items: center;
-            background-color: #2f3136;
-            padding: 5px 10px;
-            border-radius: 6px;
-        }
-        .author-card img {
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            margin-right: 10px;
-        }
-        .controls button {
-            margin: 0 0.2rem;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>曲再生サイト</title>
+  <style>
+    body {
+      background-color: #f7f3e9;
+      font-family: sans-serif;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #8bbccc;
+      padding: 1rem;
+      text-align: center;
+      color: #fff;
+      position: relative;
+    }
+    main {
+      max-width: 900px;
+      margin: auto;
+      padding: 1.5rem;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      margin: 0.4rem 0;
+    }
+    a {
+      color: #5a7d9a;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    audio {
+      width: 100%;
+      margin-top: 1.5rem;
+    }
+    .top-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+    .top-controls button {
+      padding: 6px 12px;
+      background-color: #8bbccc;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .top-controls input {
+      flex: 1;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    .creator-card {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      align-items: center;
+      background-color: rgba(255,255,255,0.3);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .creator-card img {
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      margin-right: 8px;
+    }
+    #auth {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+    #auth input {
+      padding: 8px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    #auth button {
+      padding: 8px 14px;
+      margin-top: 10px;
+      font-size: 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #8bbccc;
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
 
 <div id="auth">
-    <h2>パスワードを入力</h2>
-    <input type="password" id="password" placeholder="パスワード">
-    <button onclick="checkPassword()">送信</button>
+  <h2>パスワードを入力してください</h2>
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="checkPassword()">送信</button>
 </div>
 
-<div id="player-container">
-    <nav class="container-fluid">
-        <ul>
-            <li><strong>🎵 曲プレイヤー</strong></li>
-        </ul>
-        <ul>
-            <li>
-                <div class="author-card">
-                    <img src="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png" alt="Author Icon">
-                    <div>
-                        <div>togane_dev</div>
-                        <small>ID: 1401421639106957464</small>
-                    </div>
-                </div>
-            </li>
-        </ul>
-    </nav>
-
-    <main class="container">
-        <div class="controls">
-            <button onclick="playRandom()">ランダム再生</button>
-            <button onclick="prevTrack()">戻る</button>
-            <button onclick="nextTrack()">スキップ</button>
-            <input type="text" id="search" placeholder="検索..." oninput="searchTracks()">
-        </div>
-        <h3 id="track-title"></h3>
-        <audio id="audio" controls></audio>
-    </main>
+<div id="content" style="display:none;">
+  <header>
+    <h1>曲再生サイト</h1>
+    <div class="creator-card">
+      <img src="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png" alt="icon">
+      <div>
+        <div><strong>togane_dev</strong></div>
+        <div style="font-size: 12px;">1401421639106957464</div>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div class="top-controls">
+      <button onclick="playRandom()">ランダム</button>
+      <button onclick="prevTrack()">戻る</button>
+      <button onclick="nextTrack()">スキップ</button>
+      <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
+    </div>
+    <h2 id="track-title">曲一覧</h2>
+    <ul id="track-list">読み込み中...</ul>
+    <audio id="player" controls></audio>
+  </main>
 </div>
 
 <script>
-let validPasswords = [];
+const repoOwner = "toganedev";
+const repoName = "D";
+const baseURL = `https://${repoOwner}.github.io/${repoName}/`;
 let tracks = [];
-let currentTrackIndex = 0;
-let audio = document.getElementById("audio");
-
-async function loadPasswords() {
-    const res = await fetch("https://raw.githubusercontent.com/toganedev/D/main/password.txt");
-    const text = await res.text();
-    validPasswords = text.split(/\r?\n/).map(line => line.trim()).filter(line => line);
-}
+let currentIndex = 0;
 
 async function checkPassword() {
-    if (validPasswords.length === 0) await loadPasswords();
-    const input = document.getElementById("password").value.trim();
-    if (validPasswords.includes("toganekyoku") && input === "toganekyoku") {
-        document.getElementById("auth").style.display = "none";
-        document.getElementById("player-container").style.display = "block";
-        loadTracks();
-    } else {
-        alert("パスワードが違います");
-    }
+  const res = await fetch(`${baseURL}password.txt`);
+  const text = await res.text();
+  const lines = text.split(/\r?\n/).map(l => l.trim());
+  const input = document.getElementById("password").value.trim();
+  if (lines.includes(input)) {
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("content").style.display = "block";
+    loadTracks();
+  } else {
+    alert("パスワードが違います");
+  }
 }
 
 async function loadTracks() {
-    const res = await fetch("https://api.github.com/repos/toganedev/D/contents");
-    const files = await res.json();
-    tracks = files
-        .filter(f => f.name.endsWith(".m4a") || f.name.endsWith(".mp4"))
-        .map(f => ({
-            name: f.name,
-            url: f.download_url
-        }));
-    if (tracks.length > 0) playTrack(0);
+  const listContainer = document.getElementById("track-list");
+  const player = document.getElementById("player");
+  const res = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents`);
+  const files = await res.json();
+  tracks = files.filter(file => file.name.endsWith(".mp4") || file.name.endsWith(".m4a"))
+                .map(file => file.name);
+  listContainer.innerHTML = "";
+  tracks.forEach((name, index) => {
+    const li = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = name;
+    link.addEventListener("click", e => {
+      e.preventDefault();
+      playTrack(index);
+    });
+    li.appendChild(link);
+    listContainer.appendChild(li);
+  });
 }
 
 function playTrack(index) {
-    currentTrackIndex = index;
-    const track = tracks[index];
-    document.getElementById("track-title").innerText = track.name;
-    audio.src = track.url;
-    audio.play();
-}
-
-function playRandom() {
-    const randomIndex = Math.floor(Math.random() * tracks.length);
-    playTrack(randomIndex);
+  if (index < 0 || index >= tracks.length) return;
+  currentIndex = index;
+  document.getElementById("track-title").textContent = tracks[index];
+  const player = document.getElementById("player");
+  player.src = `${baseURL}${encodeURIComponent(tracks[index])}`;
+  player.play();
+  player.onended = () => nextTrack();
 }
 
 function nextTrack() {
-    let nextIndex = (currentTrackIndex + 1) % tracks.length;
-    playTrack(nextIndex);
+  let next = currentIndex + 1;
+  if (next >= tracks.length) next = 0;
+  playTrack(next);
 }
 
 function prevTrack() {
-    let prevIndex = (currentTrackIndex - 1 + tracks.length) % tracks.length;
-    playTrack(prevIndex);
+  let prev = currentIndex - 1;
+  if (prev < 0) prev = tracks.length - 1;
+  playTrack(prev);
 }
 
-function searchTracks() {
-    const query = document.getElementById("search").value.toLowerCase();
-    const resultIndex = tracks.findIndex(t => t.name.toLowerCase().includes(query));
-    if (resultIndex !== -1) playTrack(resultIndex);
+function playRandom() {
+  const randomIndex = Math.floor(Math.random() * tracks.length);
+  playTrack(randomIndex);
 }
 
-audio.addEventListener("ended", nextTrack);
+function filterTracks() {
+  const query = document.getElementById("search").value.toLowerCase();
+  const foundIndex = tracks.findIndex(t => t.toLowerCase().includes(query));
+  if (foundIndex !== -1) {
+    playTrack(foundIndex);
+  }
+}
 </script>
 
 </body>
