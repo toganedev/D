@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>曲再生</title>
+  <title>曲再生サイト</title>
   <style>
     body {
       background-color: #f7f3e9;
@@ -19,6 +19,18 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+    }
+    .header-left {
+      display: flex;
+      flex-direction: column;
+    }
+    .header-left h1 {
+      margin: 0;
+    }
+    .current-track {
+      font-size: 14px;
+      margin-top: 4px;
     }
     .creator-card {
       display: flex;
@@ -122,7 +134,11 @@
 
 <div id="app" style="display:none;">
   <header>
-    <h1>曲再生サイト</h1>
+    <div class="header-left">
+      <h1>曲再生サイト</h1>
+      <div class="current-track" id="now-playing">再生中: なし</div>
+      <div class="current-track" id="next-track">次の曲: なし</div>
+    </div>
     <div class="creator-card">
       <img src="discord_icon.png" alt="icon">
       <div class="creator-info">
@@ -145,6 +161,7 @@
 
 <script>
 let tracks = [];
+let filteredTracks = [];
 let currentIndex = 0;
 
 async function checkPassword() {
@@ -166,9 +183,14 @@ async function loadTracks() {
   const files = await res.json();
   tracks = files.filter(f => f.name.endsWith(".mp4") || f.name.endsWith(".m4a"))
                 .map(f => f.name);
+  filteredTracks = [...tracks];
+  renderTrackList();
+}
+
+function renderTrackList() {
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
-  tracks.forEach((name, index) => {
+  filteredTracks.forEach((name, index) => {
     const li = document.createElement("li");
     const link = document.createElement("a");
     link.href = "#";
@@ -180,37 +202,42 @@ async function loadTracks() {
 }
 
 function playTrack(index) {
-  if (index < 0 || index >= tracks.length) return;
+  if (index < 0 || index >= filteredTracks.length) return;
   currentIndex = index;
   const player = document.getElementById("player");
-  player.src = encodeURIComponent(tracks[index]);
+  player.src = encodeURIComponent(filteredTracks[index]);
   player.play();
+  updateNowPlaying();
   player.onended = () => nextTrack();
 }
 
 function nextTrack() {
   let next = currentIndex + 1;
-  if (next >= tracks.length) next = 0;
+  if (next >= filteredTracks.length) next = 0;
   playTrack(next);
 }
 
 function prevTrack() {
   let prev = currentIndex - 1;
-  if (prev < 0) prev = tracks.length - 1;
+  if (prev < 0) prev = filteredTracks.length - 1;
   playTrack(prev);
 }
 
 function playRandom() {
-  const randomIndex = Math.floor(Math.random() * tracks.length);
+  const randomIndex = Math.floor(Math.random() * filteredTracks.length);
   playTrack(randomIndex);
 }
 
 function filterTracks() {
   const query = document.getElementById("search").value.toLowerCase();
-  const foundIndex = tracks.findIndex(t => t.toLowerCase().includes(query));
-  if (foundIndex !== -1) {
-    playTrack(foundIndex);
-  }
+  filteredTracks = tracks.filter(t => t.toLowerCase().includes(query));
+  renderTrackList();
+}
+
+function updateNowPlaying() {
+  document.getElementById("now-playing").textContent = "再生中: " + (filteredTracks[currentIndex] || "なし");
+  const nextIndex = (currentIndex + 1) % filteredTracks.length;
+  document.getElementById("next-track").textContent = "次の曲: " + (filteredTracks[nextIndex] || "なし");
 }
 </script>
 </body>
