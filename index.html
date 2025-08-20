@@ -161,7 +161,7 @@
 let tracks = [];
 let filteredTracks = [];
 let currentIndex = 0;
-let isRepeat = false; // リピートモード状態
+let isRepeat = false; // 1曲リピートモード
 const repoOwner = "toganedev";
 const repoName = "D";
 const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/`;
@@ -221,9 +221,12 @@ function playTrack(index) {
   player.src = baseURL + encodeURIComponent(trackName);
   player.play();
   updateNowPlaying();
+
+  // リピート処理
   player.onended = () => {
     if (isRepeat) {
-      playTrack(currentIndex); // 同じ曲をリピート
+      player.currentTime = 0; // 曲の先頭に戻す
+      player.play();
     } else {
       nextTrack();
     }
