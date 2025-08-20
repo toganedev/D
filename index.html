@@ -144,6 +144,7 @@
       <button onclick="playRandom()">ランダム</button>
       <button onclick="prevTrack()">戻る</button>
       <button onclick="nextTrack()">スキップ</button>
+      <button onclick="toggleRepeat()" id="repeat-btn">リピートOFF</button>
     </div>
     <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
@@ -160,6 +161,7 @@
 let tracks = [];
 let filteredTracks = [];
 let currentIndex = 0;
+let isRepeat = false; // リピートモード状態
 const repoOwner = "toganedev";
 const repoName = "D";
 const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/`;
@@ -219,7 +221,13 @@ function playTrack(index) {
   player.src = baseURL + encodeURIComponent(trackName);
   player.play();
   updateNowPlaying();
-  player.onended = () => nextTrack();
+  player.onended = () => {
+    if (isRepeat) {
+      playTrack(currentIndex); // 同じ曲をリピート
+    } else {
+      nextTrack();
+    }
+  };
 }
 
 function updateNowPlaying() {
@@ -246,6 +254,11 @@ function filterTracks() {
   const query = document.getElementById("search").value.toLowerCase();
   filteredTracks = tracks.filter(t => t.toLowerCase().includes(query));
   renderTrackList();
+}
+
+function toggleRepeat() {
+  isRepeat = !isRepeat;
+  document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
 }
 </script>
 </body>
