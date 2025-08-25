@@ -178,9 +178,17 @@ const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main
 
 async function checkPassword() {
   const input = document.getElementById("password").value.trim();
+
+  // 入力が空なら弾く
+  if (!input) {
+    alert("パスワードを入力してください");
+    return;
+  }
+
   const res = await fetch(baseURL + "password.txt");
   const text = await res.text();
-  const lines = text.split(/\r?\n/).map(l => l.trim());
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== ""); // 空行除去
+
   if (lines.includes(input)) {
     document.getElementById("auth").style.display = "none";
     document.getElementById("main-content").style.display = "block";
