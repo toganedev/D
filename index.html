@@ -123,11 +123,6 @@
       margin-top: 1rem;
       font-weight: bold;
     }
-    .up-next {
-      margin-top: 0.3rem;
-      font-size: 14px;
-      color: #666;
-    }
   </style>
 </head>
 <body>
@@ -159,8 +154,7 @@
     <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
     </div>
-    <div class="now-playing" id="now-playing">再生中: なし</div>
-    <div class="up-next" id="up-next">次の曲: なし</div>
+    <div class="now-playing" id="now-playing">now なし / next なし</div>
     <h2>曲一覧</h2>
     <ul id="track-list">読み込み中...</ul>
     <audio id="player" controls></audio>
@@ -178,8 +172,6 @@ const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main
 
 async function checkPassword() {
   const input = document.getElementById("password").value.trim();
-
-  // 入力が空なら弾く
   if (!input) {
     alert("パスワードを入力してください");
     return;
@@ -187,7 +179,7 @@ async function checkPassword() {
 
   const res = await fetch(baseURL + "password.txt");
   const text = await res.text();
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== ""); // 空行除去
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== "");
 
   if (lines.includes(input)) {
     document.getElementById("auth").style.display = "none";
@@ -240,10 +232,9 @@ function playTrack(index) {
   player.play();
   updateNowPlaying();
 
-  // リピート処理
   player.onended = () => {
     if (isRepeat) {
-      player.currentTime = 0; // 曲の先頭に戻す
+      player.currentTime = 0;
       player.play();
     } else {
       nextTrack();
@@ -254,8 +245,24 @@ function playTrack(index) {
 function updateNowPlaying() {
   const now = filteredTracks[currentIndex] || "なし";
   const next = filteredTracks[(currentIndex + 1) % filteredTracks.length] || "なし";
-  document.getElementById("now-playing").textContent = "再生中: " + now;
-  document.getElementById("up-next").textContent = "次の曲: " + next;
+  document.getElementById("now-playing").textContent = "now " + now + " / next " + next;
+
+  // --- Media Session API ---
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: `now ${now} / next ${next}`,
+      artist: "togane_dev",
+      album: "D Project",
+      artwork: [
+        { src: "https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png", sizes: "512x512", type: "image/png" }
+      ]
+    });
+
+    navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
+    navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
+    navigator.mediaSession.setActionHandler("play", () => document.getElementById("player").play());
+    navigator.mediaSession.setActionHandler("pause", () => document.getElementById("player").pause());
+  }
 }
 
 function nextTrack() {
