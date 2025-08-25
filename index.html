@@ -102,7 +102,7 @@
       font-weight: bold;
       white-space: pre-line; /* 改行有効化 */
     }
-    /* --- 右下の動画/音声プレイヤー --- */
+    /* --- 右下のミニプレイヤー --- */
     #video-player {
       position: fixed;
       bottom: 10px;
@@ -118,6 +118,17 @@
       height: 100%;
       border: none;
       background: #000;
+    }
+    #pip-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: rgba(255,255,255,0.7);
+      border: none;
+      padding: 2px 6px;
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -157,9 +168,10 @@
   </main>
 </div>
 
-<!-- 右下に出るプレイヤー -->
+<!-- 右下に出るミニプレイヤー -->
 <div id="video-player">
   <video id="video-frame" controls></video>
+  <button id="pip-btn">📺</button>
 </div>
 
 <script>
@@ -224,23 +236,62 @@ function playTrack(index) {
   if (index < 0 || index >= filteredTracks.length) return;
   currentIndex = index;
   const trackName = filteredTracks[index];
-  const player = document.getElementById("player");
-  player.src = baseURL + encodeURIComponent(trackName);
-  player.play();
+  const url = baseURL + encodeURIComponent(trackName);
+
+  const audioPlayer = document.getElementById("player");
+  const videoFrame = document.getElementById("video-frame");
+  const videoPlayer = document.getElementById("video-player");
+
+  // 両方に同じソースを設定
+  audioPlayer.src = url;
+  videoFrame.src = url;
+
+  audioPlayer.play();
+  videoFrame.play();
+
+  videoPlayer.style.display = "block";
   updateNowPlaying();
 
-  // --- 右下プレイヤーに GitHub ファイルを表示 ---
-  const videoPlayer = document.getElementById("video-player");
-  const videoFrame = document.getElementById("video-frame");
-  videoFrame.src = baseURL + encodeURIComponent(trackName);
-  videoPlayer.style.display = "block";
+  // --- 同期処理 ---
+  syncPlayers(audioPlayer, videoFrame);
 
-  player.onended = () => {
+  audioPlayer.onended = () => {
     if (isRepeat) {
-      player.currentTime = 0;
-      player.play();
+      audioPlayer.currentTime = 0;
+      audioPlayer.play();
+      videoFrame.currentTime = 0;
+      videoFrame.play();
     } else {
       nextTrack();
+    }
+  };
+}
+
+// --- 再生位置・再生/一時停止を同期する関数 ---
+function syncPlayers(audio, video) {
+  // 一度前のイベントリスナーを削除（重複防止）
+  audio.onplay = null;
+  audio.onpause = null;
+  audio.ontimeupdate = null;
+  video.onplay = null;
+  video.onpause = null;
+  video.ontimeupdate = null;
+
+  // audio → video に反映
+  audio.onplay = () => { if (video.paused) video.play(); };
+  audio.onpause = () => { if (!video.paused) video.pause(); };
+  audio.ontimeupdate = () => {
+    if (Math.abs(audio.currentTime - video.currentTime) > 0.3) {
+      video.currentTime = audio.currentTime;
+    }
+  };
+
+  // video → audio に反映
+  video.onplay = () => { if (audio.paused) audio.play(); };
+  video.onpause = () => { if (!audio.paused) audio.pause(); };
+  video.ontimeupdate = () => {
+    if (Math.abs(video.currentTime - audio.currentTime) > 0.3) {
+      audio.currentTime = video.currentTime;
     }
   };
 }
@@ -266,6 +317,16 @@ function toggleRepeat() {
   isRepeat = !isRepeat;
   document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
 }
+
+// --- PiP（ピクチャーインピクチャー） ---
+document.getElementById("pip-btn").addEventListener("click", async () => {
+  const video = document.getElementById("video-frame");
+  if (document.pictureInPictureElement) {
+    await document.exitPictureInPicture();
+  } else {
+    await video.requestPictureInPicture();
+  }
+});
 </script>
 </body>
 </html>
