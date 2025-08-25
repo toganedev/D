@@ -130,6 +130,12 @@
       font-size: 16px;
       border-radius: 4px;
     }
+    footer {
+      text-align: center;
+      padding: 1rem;
+      font-size: 12px;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -170,9 +176,13 @@
 
 <!-- 右下に出るミニプレイヤー -->
 <div id="video-player">
-  <video id="video-frame" controls></video>
+  <video id="video-frame" muted></video> <!-- ★常に音量0 -->
   <button id="pip-btn">📺</button>
 </div>
+
+<footer>
+  ver1.0
+</footer>
 
 <script>
 let tracks = [];
@@ -246,14 +256,12 @@ function playTrack(index) {
   audioPlayer.src = url;
   videoFrame.src = url;
 
+  // 音はaudioのみ / videoは無音
   audioPlayer.play();
   videoFrame.play();
 
   videoPlayer.style.display = "block";
   updateNowPlaying();
-
-  // --- 同期処理 ---
-  syncPlayers(audioPlayer, videoFrame);
 
   audioPlayer.onended = () => {
     if (isRepeat) {
@@ -263,35 +271,6 @@ function playTrack(index) {
       videoFrame.play();
     } else {
       nextTrack();
-    }
-  };
-}
-
-// --- 再生位置・再生/一時停止を同期する関数 ---
-function syncPlayers(audio, video) {
-  // 一度前のイベントリスナーを削除（重複防止）
-  audio.onplay = null;
-  audio.onpause = null;
-  audio.ontimeupdate = null;
-  video.onplay = null;
-  video.onpause = null;
-  video.ontimeupdate = null;
-
-  // audio → video に反映
-  audio.onplay = () => { if (video.paused) video.play(); };
-  audio.onpause = () => { if (!video.paused) video.pause(); };
-  audio.ontimeupdate = () => {
-    if (Math.abs(audio.currentTime - video.currentTime) > 0.3) {
-      video.currentTime = audio.currentTime;
-    }
-  };
-
-  // video → audio に反映
-  video.onplay = () => { if (audio.paused) audio.play(); };
-  video.onpause = () => { if (!audio.paused) audio.pause(); };
-  video.ontimeupdate = () => {
-    if (Math.abs(video.currentTime - audio.currentTime) > 0.3) {
-      audio.currentTime = video.currentTime;
     }
   };
 }
