@@ -5,13 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>曲再生サイト</title>
 
-  <!-- サイトアイコン -->
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png">
-
-  <!-- スマホ用ホーム画面アイコン -->
   <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png">
-
-  <!-- PWA用マニフェスト -->
   <link rel="manifest" href="manifest.json">
 
   <style>
@@ -30,9 +25,7 @@
       align-items: center;
       color: #fff;
     }
-    header h1 {
-      margin: 0;
-    }
+    header h1 { margin: 0; }
     .creator-card {
       display: flex;
       align-items: center;
@@ -48,21 +41,14 @@
       margin: auto;
       padding: 1.5rem;
     }
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-    li {
-      margin: 0.4rem 0;
-    }
+    ul { list-style: none; padding: 0; }
+    li { margin: 0.4rem 0; }
     a {
       color: #5a7d9a;
       text-decoration: none;
       font-weight: bold;
     }
-    a:hover {
-      text-decoration: underline;
-    }
+    a:hover { text-decoration: underline; }
     audio {
       width: 100%;
       margin-top: 1.5rem;
@@ -81,12 +67,8 @@
       border-radius: 4px;
       font-size: 14px;
     }
-    .controls button:hover {
-      background-color: #7aa9b6;
-    }
-    .search-bar {
-      margin-bottom: 1rem;
-    }
+    .controls button:hover { background-color: #7aa9b6; }
+    .search-bar { margin-bottom: 1rem; }
     .search-bar input {
       padding: 0.4rem;
       font-size: 14px;
@@ -102,7 +84,7 @@
       justify-content: center;
       height: 100vh;
     }
-    #auth input {
+    #auth input, #auth button {
       padding: 8px;
       margin-top: 8px;
       font-size: 14px;
@@ -110,18 +92,32 @@
       border: 1px solid #ccc;
     }
     #auth button {
-      padding: 8px 14px;
-      margin-top: 8px;
-      font-size: 14px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
       background-color: #8bbccc;
       color: #fff;
+      border: none;
+      cursor: pointer;
     }
     .now-playing {
       margin-top: 1rem;
       font-weight: bold;
+      white-space: pre-line; /* 改行有効化 */
+    }
+    /* --- 右下の動画/音声プレイヤー --- */
+    #video-player {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      width: 300px;
+      height: 170px;
+      background: #000;
+      display: none; /* 曲再生時のみ表示 */
+      z-index: 1000;
+    }
+    #video-player video {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #000;
     }
   </style>
 </head>
@@ -154,18 +150,23 @@
     <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
     </div>
-    <div class="now-playing" id="now-playing">now なし / next なし</div>
+    <div class="now-playing" id="now-playing">再生中: なし\n次の曲: なし</div>
     <h2>曲一覧</h2>
     <ul id="track-list">読み込み中...</ul>
     <audio id="player" controls></audio>
   </main>
 </div>
 
+<!-- 右下に出るプレイヤー -->
+<div id="video-player">
+  <video id="video-frame" controls></video>
+</div>
+
 <script>
 let tracks = [];
 let filteredTracks = [];
 let currentIndex = 0;
-let isRepeat = false; // 1曲リピートモード
+let isRepeat = false;
 const repoOwner = "toganedev";
 const repoName = "D";
 const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/`;
@@ -176,11 +177,9 @@ async function checkPassword() {
     alert("パスワードを入力してください");
     return;
   }
-
   const res = await fetch(baseURL + "password.txt");
   const text = await res.text();
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== "");
-
   if (lines.includes(input)) {
     document.getElementById("auth").style.display = "none";
     document.getElementById("main-content").style.display = "block";
@@ -191,9 +190,7 @@ async function checkPassword() {
 }
 
 document.getElementById("password").addEventListener("keydown", e => {
-  if (e.key === "Enter") {
-    checkPassword();
-  }
+  if (e.key === "Enter") checkPassword();
 });
 
 async function loadTracks() {
@@ -232,6 +229,12 @@ function playTrack(index) {
   player.play();
   updateNowPlaying();
 
+  // --- 右下プレイヤーに GitHub ファイルを表示 ---
+  const videoPlayer = document.getElementById("video-player");
+  const videoFrame = document.getElementById("video-frame");
+  videoFrame.src = baseURL + encodeURIComponent(trackName);
+  videoPlayer.style.display = "block";
+
   player.onended = () => {
     if (isRepeat) {
       player.currentTime = 0;
@@ -245,45 +248,20 @@ function playTrack(index) {
 function updateNowPlaying() {
   const now = filteredTracks[currentIndex] || "なし";
   const next = filteredTracks[(currentIndex + 1) % filteredTracks.length] || "なし";
-  document.getElementById("now-playing").textContent = "now " + now + " / next " + next;
-
-  // --- Media Session API ---
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: `now ${now} / next ${next}`,
-      artist: "togane_dev",
-      album: "D Project",
-      artwork: [
-        { src: "https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png", sizes: "512x512", type: "image/png" }
-      ]
-    });
-
-    navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
-    navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
-    navigator.mediaSession.setActionHandler("play", () => document.getElementById("player").play());
-    navigator.mediaSession.setActionHandler("pause", () => document.getElementById("player").pause());
-  }
+  document.getElementById("now-playing").textContent = `再生中: ${now}\n次の曲: ${next}`;
 }
 
-function nextTrack() {
-  playTrack((currentIndex + 1) % filteredTracks.length);
-}
-
-function prevTrack() {
-  playTrack((currentIndex - 1 + filteredTracks.length) % filteredTracks.length);
-}
-
+function nextTrack() { playTrack((currentIndex + 1) % filteredTracks.length); }
+function prevTrack() { playTrack((currentIndex - 1 + filteredTracks.length) % filteredTracks.length); }
 function playRandom() {
   const randomIndex = Math.floor(Math.random() * filteredTracks.length);
   playTrack(randomIndex);
 }
-
 function filterTracks() {
   const query = document.getElementById("search").value.toLowerCase();
   filteredTracks = tracks.filter(t => t.toLowerCase().includes(query));
   renderTrackList();
 }
-
 function toggleRepeat() {
   isRepeat = !isRepeat;
   document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
