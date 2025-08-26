@@ -176,12 +176,12 @@
 
 <!-- 右下に出るミニプレイヤー -->
 <div id="video-player">
-  <video id="video-frame" muted></video> <!-- ★常に音量0 -->
+  <video id="video-frame" muted playsinline webkit-playsinline></video> <!-- iOSでも全画面化しない -->
   <button id="pip-btn">📺</button>
 </div>
 
 <footer>
-  ver1.0
+  ver1.1
 </footer>
 
 <script>
@@ -260,7 +260,7 @@ function playTrack(index) {
   audioPlayer.play();
   videoFrame.play();
 
-  videoPlayer.style.display = "block";
+  videoPlayer.style.display = "block"; // 再生時に表示
   updateNowPlaying();
 
   audioPlayer.onended = () => {
@@ -270,6 +270,7 @@ function playTrack(index) {
       videoFrame.currentTime = 0;
       videoFrame.play();
     } else {
+      videoPlayer.style.display = "none"; // 停止時に非表示
       nextTrack();
     }
   };
