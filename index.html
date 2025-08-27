@@ -57,6 +57,7 @@
       margin-bottom: 1rem;
       display: flex;
       gap: 0.5rem;
+      flex-wrap: wrap;
     }
     .controls button {
       background-color: #8bbccc;
@@ -163,6 +164,7 @@
       <button onclick="prevTrack()">戻る</button>
       <button onclick="nextTrack()">スキップ</button>
       <button onclick="toggleRepeat()" id="repeat-btn">リピートOFF</button>
+      <button onclick="toggleFavorites()" id="favorites-btn">⭐ お気に入りだけ</button>
     </div>
     <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
@@ -181,7 +183,7 @@
 </div>
 
 <footer>
-  ver1.1
+  ver1.2
 </footer>
 
 <script>
@@ -192,6 +194,10 @@ let isRepeat = false;
 const repoOwner = "toganedev";
 const repoName = "D";
 const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/`;
+
+// --- お気に入り管理 ---
+let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
+let showFavoritesOnly = false;
 
 async function checkPassword() {
   const input = document.getElementById("password").value.trim();
@@ -228,8 +234,17 @@ async function loadTracks() {
 function renderTrackList() {
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
-  filteredTracks.forEach((file, index) => {
+  let displayTracks = showFavoritesOnly ? favorites : filteredTracks;
+
+  if (displayTracks.length === 0) {
+    listContainer.innerHTML = "<li>曲がありません</li>";
+    return;
+  }
+
+  displayTracks.forEach((file) => {
     const li = document.createElement("li");
+
+    // 曲名リンク
     const link = document.createElement("a");
     link.href = "#";
     link.textContent = file;
@@ -237,9 +252,39 @@ function renderTrackList() {
       e.preventDefault();
       playTrack(filteredTracks.indexOf(file));
     });
+
+    // ⭐ ボタン
+    const favBtn = document.createElement("button");
+    favBtn.textContent = favorites.includes(file) ? "⭐" : "☆";
+    favBtn.style.marginLeft = "8px";
+    favBtn.style.border = "none";
+    favBtn.style.background = "transparent";
+    favBtn.style.cursor = "pointer";
+    favBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      toggleFavorite(file);
+    });
+
     li.appendChild(link);
+    li.appendChild(favBtn);
     listContainer.appendChild(li);
   });
+}
+
+function toggleFavorite(track) {
+  if (favorites.includes(track)) {
+    favorites = favorites.filter(f => f !== track);
+  } else {
+    favorites.push(track);
+  }
+  localStorage.setItem("favorites", JSON.stringify(favorites));
+  renderTrackList();
+}
+
+function toggleFavorites() {
+  showFavoritesOnly = !showFavoritesOnly;
+  document.getElementById("favorites-btn").textContent = showFavoritesOnly ? "📂 全曲表示" : "⭐ お気に入りだけ";
+  renderTrackList();
 }
 
 function playTrack(index) {
@@ -252,11 +297,9 @@ function playTrack(index) {
   const videoFrame = document.getElementById("video-frame");
   const videoPlayer = document.getElementById("video-player");
 
-  // 両方に同じソースを設定
   audioPlayer.src = url;
   videoFrame.src = url;
 
-  // 音はaudioのみ / videoは無音
   audioPlayer.play();
   videoFrame.play();
 
