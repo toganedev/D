@@ -186,7 +186,7 @@
 
 <script>
 let tracks = [];
-let currentList = []; // ← 再生対象のリスト
+let currentList = []; // 再生対象のリスト
 let currentIndex = 0;
 let isRepeat = false;
 const repoOwner = "toganedev";
@@ -231,15 +231,13 @@ async function loadTracks() {
 function renderTrackList() {
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
-  let displayTracks = showFavoritesOnly ? favorites : tracks;
-  currentList = displayTracks;
 
-  if (displayTracks.length === 0) {
+  if (currentList.length === 0) {
     listContainer.innerHTML = "<li>曲がありません</li>";
     return;
   }
 
-  displayTracks.forEach((file) => {
+  currentList.forEach((file) => {
     const li = document.createElement("li");
 
     const link = document.createElement("a");
@@ -280,6 +278,7 @@ function toggleFavorite(track) {
 function toggleFavorites() {
   showFavoritesOnly = !showFavoritesOnly;
   document.getElementById("favorites-btn").textContent = showFavoritesOnly ? "📂 全曲表示" : "⭐ お気に入りだけ";
+  currentList = showFavoritesOnly ? [...favorites] : [...tracks];
   renderTrackList();
 }
 
@@ -327,12 +326,14 @@ function playRandom() {
   const randomIndex = Math.floor(Math.random() * currentList.length);
   playTrack(randomIndex);
 }
+
 function filterTracks() {
   const query = document.getElementById("search").value.toLowerCase();
   let base = showFavoritesOnly ? favorites : tracks;
   currentList = base.filter(t => t.toLowerCase().includes(query));
   renderTrackList();
 }
+
 function toggleRepeat() {
   isRepeat = !isRepeat;
   document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
