@@ -280,6 +280,7 @@ async function loadLyrics() {
   try {
     const res = await fetch(baseURL + "kashi.json");
     lyricsData = await res.json();
+    renderTrackList(); // 歌詞データ読み込み後にリスト更新
   } catch (e) {
     console.error("歌詞データ読み込み失敗:", e);
   }
@@ -316,17 +317,22 @@ function renderTrackList() {
       toggleFavorite(file);
     });
 
-    const lyricsBtn = document.createElement("button");
-    lyricsBtn.textContent = "歌詞";
-    lyricsBtn.className = "lyrics-btn";
-    lyricsBtn.addEventListener("click", e => {
-      e.stopPropagation();
-      showLyrics(file);
-    });
-
     li.appendChild(link);
     li.appendChild(favBtn);
-    li.appendChild(lyricsBtn);
+
+    // 歌詞データがあるときだけ追加
+    const hasLyrics = lyricsData.some(item => item.file === file);
+    if (hasLyrics) {
+      const lyricsBtn = document.createElement("button");
+      lyricsBtn.textContent = "歌詞";
+      lyricsBtn.className = "lyrics-btn";
+      lyricsBtn.addEventListener("click", e => {
+        e.stopPropagation();
+        showLyrics(file);
+      });
+      li.appendChild(lyricsBtn);
+    }
+
     listContainer.appendChild(li);
   });
 }
@@ -420,8 +426,6 @@ function showLyrics(track) {
   if (match) {
     document.getElementById("lyrics-content").textContent = match.lyrics;
     document.getElementById("lyrics-modal").style.display = "flex";
-  } else {
-    alert("この曲の歌詞は登録されていません");
   }
 }
 
