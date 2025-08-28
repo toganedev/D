@@ -136,6 +136,44 @@
       font-size: 12px;
       color: #666;
     }
+
+    /* 歌詞モーダル */
+    #lyrics-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+    }
+    #lyrics-box {
+      background: #fff;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-y: auto;
+      white-space: pre-line;
+    }
+    #lyrics-box h3 {
+      margin-top: 0;
+      text-align: center;
+    }
+    .lyrics-btn {
+      margin-left: 8px;
+      border: none;
+      background: #8bbccc;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .lyrics-btn:hover {
+      background: #7aa9b6;
+    }
   </style>
 </head>
 <body>
@@ -180,8 +218,16 @@
   <button id="pip-btn">📺</button>
 </div>
 
+<!-- 歌詞モーダル -->
+<div id="lyrics-modal">
+  <div id="lyrics-box">
+    <h3>歌詞</h3>
+    <div id="lyrics-content"></div>
+  </div>
+</div>
+
 <footer>
-  ver1.4
+  ver1.5
 </footer>
 
 <script>
@@ -195,6 +241,7 @@ const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main
 
 let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 let showFavoritesOnly = false;
+let lyricsData = [];
 
 async function checkPassword() {
   const input = document.getElementById("password").value.trim();
@@ -209,6 +256,7 @@ async function checkPassword() {
     document.getElementById("auth").style.display = "none";
     document.getElementById("main-content").style.display = "block";
     loadTracks();
+    loadLyrics();
   } else {
     alert("パスワードが違います");
   }
@@ -226,6 +274,15 @@ async function loadTracks() {
     .map(file => decodeURIComponent(file.name));
   currentList = [...tracks];
   renderTrackList();
+}
+
+async function loadLyrics() {
+  try {
+    const res = await fetch(baseURL + "kashi.json");
+    lyricsData = await res.json();
+  } catch (e) {
+    console.error("歌詞データ読み込み失敗:", e);
+  }
 }
 
 function renderTrackList() {
@@ -259,8 +316,17 @@ function renderTrackList() {
       toggleFavorite(file);
     });
 
+    const lyricsBtn = document.createElement("button");
+    lyricsBtn.textContent = "歌詞";
+    lyricsBtn.className = "lyrics-btn";
+    lyricsBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      showLyrics(file);
+    });
+
     li.appendChild(link);
     li.appendChild(favBtn);
+    li.appendChild(lyricsBtn);
     listContainer.appendChild(li);
   });
 }
@@ -345,6 +411,24 @@ document.getElementById("pip-btn").addEventListener("click", async () => {
     await document.exitPictureInPicture();
   } else {
     await video.requestPictureInPicture();
+  }
+});
+
+// 歌詞表示
+function showLyrics(track) {
+  const match = lyricsData.find(item => item.file === track);
+  if (match) {
+    document.getElementById("lyrics-content").textContent = match.lyrics;
+    document.getElementById("lyrics-modal").style.display = "flex";
+  } else {
+    alert("この曲の歌詞は登録されていません");
+  }
+}
+
+// モーダル閉じる処理
+document.getElementById("lyrics-modal").addEventListener("click", e => {
+  if (e.target.id === "lyrics-modal") {
+    document.getElementById("lyrics-modal").style.display = "none";
   }
 });
 </script>
