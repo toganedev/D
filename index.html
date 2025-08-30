@@ -136,7 +136,6 @@
       font-size: 12px;
       color: #666;
     }
-
     /* 歌詞モーダル */
     #lyrics-modal {
       display: none;
@@ -227,12 +226,12 @@
 </div>
 
 <footer>
-  ver1.6
+  ver1.7
 </footer>
 
 <script>
 let tracks = [];
-let currentList = []; // 再生対象のリスト
+let currentList = [];
 let currentIndex = 0;
 let isRepeat = false;
 const repoOwner = "toganedev";
@@ -245,10 +244,8 @@ let lyricsData = [];
 
 async function checkPassword() {
   const input = document.getElementById("password").value.trim();
-  if (!input) {
-    alert("パスワードを入力してください");
-    return;
-  }
+  if (!input) return alert("パスワードを入力してください");
+
   const res = await fetch(baseURL + "password.txt");
   const text = await res.text();
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== "");
@@ -257,9 +254,7 @@ async function checkPassword() {
     document.getElementById("main-content").style.display = "block";
     loadTracks();
     loadLyrics();
-  } else {
-    alert("パスワードが違います");
-  }
+  } else alert("パスワードが違います");
 }
 
 document.getElementById("password").addEventListener("keydown", e => {
@@ -280,7 +275,7 @@ async function loadLyrics() {
   try {
     const res = await fetch(baseURL + "kashi.json");
     lyricsData = await res.json();
-    renderTrackList(); // 歌詞データ読み込み後にリスト更新
+    renderTrackList();
   } catch (e) {
     console.error("歌詞データ読み込み失敗:", e);
   }
@@ -320,7 +315,6 @@ function renderTrackList() {
     li.appendChild(link);
     li.appendChild(favBtn);
 
-    // 歌詞データがあるときだけ追加
     const hasLyrics = lyricsData.some(item => item.file === file);
     if (hasLyrics) {
       const lyricsBtn = document.createElement("button");
@@ -340,9 +334,8 @@ function renderTrackList() {
 function toggleFavorite(track) {
   if (favorites.includes(track)) {
     favorites = favorites.filter(f => f !== track);
-  } else {
-    favorites.push(track);
-  }
+  } else favorites.push(track);
+
   localStorage.setItem("favorites", JSON.stringify(favorites));
   renderTrackList();
 }
@@ -354,7 +347,7 @@ function toggleFavorites() {
   renderTrackList();
 }
 
-function playTrack(index) {
+async function playTrack(index) {
   if (index < 0 || index >= currentList.length) return;
   currentIndex = index;
   const trackName = currentList[index];
@@ -366,18 +359,18 @@ function playTrack(index) {
 
   audioPlayer.src = url;
   videoFrame.src = url;
-
   audioPlayer.play();
   videoFrame.play();
-
   videoPlayer.style.display = "block";
   updateNowPlaying();
+
+  updateMediaSession(trackName, url);
 
   audioPlayer.onended = () => {
     if (isRepeat) {
       audioPlayer.currentTime = 0;
-      audioPlayer.play();
       videoFrame.currentTime = 0;
+      audioPlayer.play();
       videoFrame.play();
     } else {
       videoPlayer.style.display = "none";
@@ -413,12 +406,54 @@ function toggleRepeat() {
 
 document.getElementById("pip-btn").addEventListener("click", async () => {
   const video = document.getElementById("video-frame");
-  if (document.pictureInPictureElement) {
-    await document.exitPictureInPicture();
-  } else {
-    await video.requestPictureInPicture();
-  }
+  if (document.pictureInPictureElement) await document.exitPictureInPicture();
+  else await video.requestPictureInPicture();
 });
+
+// === Media Session API ===
+async function updateMediaSession(fileName, url) {
+  let artwork = [{ src: "https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png", sizes: "512x512", type: "image/png" }];
+
+  if (fileName.endsWith(".mp4")) {
+    try {
+      artwork = [{ src: await getThumbnail(url), sizes: "512x512", type: "image/png" }];
+    } catch (e) {
+      console.warn("サムネイル生成失敗", e);
+    }
+  }
+
+  if ("mediaSession" in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: fileName,
+      artist: "再生サイト",
+      album: "再生中",
+      artwork: artwork
+    });
+
+    navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
+    navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
+  }
+}
+
+// === mp4 サムネイル生成 ===
+function getThumbnail(url) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.src = url;
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.currentTime = 1;
+    video.addEventListener("loadeddata", () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth / 4;
+      canvas.height = video.videoHeight / 4;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/png"));
+    });
+    video.addEventListener("error", reject);
+  });
+}
 
 // 歌詞表示
 function showLyrics(track) {
@@ -429,7 +464,7 @@ function showLyrics(track) {
   }
 }
 
-// モーダル閉じる処理
+// モーダル閉じる
 document.getElementById("lyrics-modal").addEventListener("click", e => {
   if (e.target.id === "lyrics-modal") {
     document.getElementById("lyrics-modal").style.display = "none";
