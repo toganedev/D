@@ -481,18 +481,22 @@ async function playTrack(url, fileKey) {
   updateNowPlaying(fileKey);
   updateMediaSession(fileKey, url);
 
-  audioPlayer.onended = () => {
-    if (isRepeat) {
-      audioPlayer.currentTime = 0;
-      videoFrame.currentTime = 0;
-      audioPlayer.play();
-      videoFrame.play();
-    } else if (nextTrackKey) {
-      playTrack(baseURL + nextTrackKey, nextTrackKey);
-    } else {
-      videoPlayer.style.display = "none";
-    }
-  };
+audioPlayer.onended = () => {
+  if (isRepeat) {
+    // リピート再生
+    audioPlayer.currentTime = 0;
+    videoFrame.currentTime = 0;
+    audioPlayer.play();
+    videoFrame.play();
+  } else if (nextTrackKey) {
+    // 次の曲へ
+    playTrack(baseURL + nextTrackKey, nextTrackKey);
+  } else {
+    // 停止
+    videoPlayer.style.display = "none";
+  }
+};
+
 }
 function updateNowPlaying(trackName) {
   const currentName = trackName.split("/").pop();
