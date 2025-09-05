@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver2.8
+  ver2.9
 </footer>
 
 <script>
@@ -290,7 +290,7 @@ document.getElementById("password").addEventListener("keydown", e => {
   if (e.key === "Enter") checkPassword();
 });
 
-// === 時刻表示 ===
+// === 時刻表示（1秒ごと更新） ===
 function updateJapanTime() {
   const now = new Date();
   const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
@@ -299,9 +299,13 @@ function updateJapanTime() {
   const d = String(jst.getUTCDate()).padStart(2, "0");
   const hh = String(jst.getUTCHours()).padStart(2, "0");
   const mm = String(jst.getUTCMinutes()).padStart(2, "0");
+  const ss = String(jst.getUTCSeconds()).padStart(2, "0");
   const day = ["日","月","火","水","木","金","土"][jst.getUTCDay()];
-  document.getElementById("japan-time").textContent = `${y}/${m}/${d}/${hh}:${mm}（${day}）`;
+  document.getElementById("japan-time").textContent = `${y}/${m}/${d} ${hh}:${mm}:${ss}（${day}）`;
 }
+
+// ページ読み込み後に毎秒更新
+setInterval(updateJapanTime, 1000);
 
 // === 曲一覧読み込み ===
 async function loadTracks() {
