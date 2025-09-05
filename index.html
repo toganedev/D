@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver2.5
+  ver2.6
 </footer>
 
 <script>
@@ -357,10 +357,11 @@ async function buildFolderTree(path, parentElement) {
       favBtn.style.border = "none";
       favBtn.style.background = "transparent";
       favBtn.style.cursor = "pointer";
-      favBtn.addEventListener("click", e => {
-        e.stopPropagation();
-        toggleFavorite(fullKey);
-      });
+     favBtn.addEventListener("click", e => {
+  e.stopPropagation();
+  toggleFavorite(fullKey);
+  favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆"; // ←追加
+});
 
       li.appendChild(link);
       li.appendChild(favBtn);
