@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver2.0
+  ver2.1
 </footer>
 
 <script>
@@ -260,17 +260,12 @@ let tracks = [];
 let currentList = [];
 let currentIndex = 0;
 let isRepeat = false;
+let nextTrackKey = null;
 const repoOwner = "toganedev";
 const repoName = "D";
 const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/`;
 
-// --- お気に入りを最初の一回だけリセット ---
-if (!localStorage.getItem("favoritesResetDone")) {
-  localStorage.removeItem("favorites");
-  localStorage.setItem("favoritesResetDone", "true");
-}
 let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
-
 let showFavoritesOnly = false;
 let lyricsData = [];
 
@@ -341,8 +336,8 @@ async function buildFolderTree(path, parentElement) {
       li.appendChild(nested);
       parentElement.appendChild(li);
     } else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
-      const fileKey = path + item.name;
-      tracks.push(fileKey);
+      const fullKey = path + item.name;
+      tracks.push(fullKey);
 
       const li = document.createElement("li");
       const link = document.createElement("a");
@@ -350,24 +345,23 @@ async function buildFolderTree(path, parentElement) {
       link.textContent = item.name;
       link.addEventListener("click", e => {
         e.preventDefault();
-        playTrack(baseURL + path + encodeURIComponent(item.name), fileKey);
+        playTrack(baseURL + path + encodeURIComponent(item.name), fullKey);
       });
 
       const favBtn = document.createElement("button");
-      favBtn.textContent = favorites.includes(fileKey) ? "⭐" : "☆";
+      favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
       favBtn.style.marginLeft = "8px";
       favBtn.style.border = "none";
       favBtn.style.background = "transparent";
       favBtn.style.cursor = "pointer";
       favBtn.addEventListener("click", e => {
         e.stopPropagation();
-        toggleFavorite(fileKey, favBtn);
+        toggleFavorite(fullKey);
       });
 
       li.appendChild(link);
       li.appendChild(favBtn);
 
-      // 歌詞判定はファイル名だけで行う
       const hasLyrics = lyricsData.some(entry => entry.file === item.name);
       if (hasLyrics) {
         const lyricsBtn = document.createElement("button");
@@ -394,13 +388,24 @@ async function loadLyrics() {
   }
 }
 
-function toggleFavorite(track, btnEl=null) {
+function showLyrics(fileName) {
+  const entry = lyricsData.find(e => e.file === fileName);
+  if (entry) {
+    document.getElementById("lyrics-content").textContent = entry.lyrics;
+    document.getElementById("lyrics-modal").style.display = "flex";
+  }
+}
+
+document.getElementById("lyrics-modal").addEventListener("click", () => {
+  document.getElementById("lyrics-modal").style.display = "none";
+});
+
+function toggleFavorite(track) {
   if (favorites.includes(track)) {
     favorites = favorites.filter(f => f !== track);
   } else favorites.push(track);
 
   localStorage.setItem("favorites", JSON.stringify(favorites));
-  if (btnEl) btnEl.textContent = favorites.includes(track) ? "⭐" : "☆";
   if (showFavoritesOnly) renderFavorites();
 }
 
@@ -433,24 +438,11 @@ function renderFavorites() {
     favBtn.style.cursor = "pointer";
     favBtn.addEventListener("click", e => {
       e.stopPropagation();
-      toggleFavorite(file, favBtn);
+      toggleFavorite(file);
     });
 
     li.appendChild(link);
     li.appendChild(favBtn);
-
-    const hasLyrics = lyricsData.some(entry => entry.file === fileName);
-    if (hasLyrics) {
-      const lyricsBtn = document.createElement("button");
-      lyricsBtn.textContent = "歌詞";
-      lyricsBtn.className = "lyrics-btn";
-      lyricsBtn.addEventListener("click", e => {
-        e.stopPropagation();
-        showLyrics(fileName);
-      });
-      li.appendChild(lyricsBtn);
-    }
-
     listContainer.appendChild(li);
   });
 }
@@ -467,6 +459,7 @@ async function playTrack(url, fileKey) {
   audioPlayer.play();
   videoFrame.play();
   videoPlayer.style.display = "block";
+
   updateNowPlaying(fileKey);
 
   updateMediaSession(fileKey, url);
@@ -477,6 +470,8 @@ async function playTrack(url, fileKey) {
       videoFrame.currentTime = 0;
       audioPlayer.play();
       videoFrame.play();
+    } else if (nextTrackKey) {
+      playTrack(baseURL + nextTrackKey, nextTrackKey);
     } else {
       videoPlayer.style.display = "none";
     }
@@ -484,51 +479,70 @@ async function playTrack(url, fileKey) {
 }
 
 function updateNowPlaying(trackName) {
-  document.getElementById("now-playing").textContent = `再生中: ${trackName}`;
+  const nextName = nextTrackKey ? nextTrackKey.split("/").pop() : "なし";
+  document.getElementById("now-playing").textContent = `再生中: ${trackName}\n次の曲: ${nextName}`;
 }
 
-function nextTrack() {}
-function prevTrack() {}
-
 function playRandom() {
-  const all = favorites.length > 0 && showFavoritesOnly ? favorites : tracks;
+  const all = showFavoritesOnly ? favorites : tracks;
   if (all.length === 0) return;
+
   const randomIndex = Math.floor(Math.random() * all.length);
-  playTrack(baseURL + all[randomIndex], all[randomIndex]);
+  const currentKey = all[randomIndex];
+  let nextIndex = Math.floor(Math.random() * all.length);
+  if (all.length > 1) {
+    while (nextIndex === randomIndex) {
+      nextIndex = Math.floor(Math.random() * all.length);
+    }
+  }
+  nextTrackKey = all[nextIndex];
+
+  playTrack(baseURL + currentKey, currentKey);
+}
+
+function nextTrack() {
+  if (nextTrackKey) {
+    const all = showFavoritesOnly ? favorites : tracks;
+    const currentKey = nextTrackKey;
+    let nextIndex = Math.floor(Math.random() * all.length);
+    if (all.length > 1) {
+      while (all[nextIndex] === currentKey) {
+        nextIndex = Math.floor(Math.random() * all.length);
+      }
+    }
+    nextTrackKey = all[nextIndex];
+    playTrack(baseURL + currentKey, currentKey);
+  }
+}
+
+function prevTrack() {
+  // シンプルに未実装
 }
 
 function startPlayback() {
   document.getElementById("player").play();
   document.getElementById("video-frame").play();
 }
+
 function stopPlayback() {
   document.getElementById("player").pause();
   document.getElementById("video-frame").pause();
 }
 
+// === リピート切替 ===
 function toggleRepeat() {
   isRepeat = !isRepeat;
   document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
 }
 
-// === 歌詞表示 ===
-function showLyrics(fileName) {
-  const entry = lyricsData.find(e => e.file === fileName);
-  if (!entry) return;
-  document.getElementById("lyrics-content").textContent = entry.lyrics;
-  document.getElementById("lyrics-modal").style.display = "flex";
-}
-document.getElementById("lyrics-modal").addEventListener("click", e => {
-  if (e.target.id === "lyrics-modal") {
-    document.getElementById("lyrics-modal").style.display = "none";
-  }
-});
-
 // === PiP ===
 document.getElementById("pip-btn").addEventListener("click", async () => {
   const video = document.getElementById("video-frame");
-  if (document.pictureInPictureElement) await document.exitPictureInPicture();
-  else await video.requestPictureInPicture();
+  if (document.pictureInPictureElement) {
+    await document.exitPictureInPicture();
+  } else {
+    await video.requestPictureInPicture();
+  }
 });
 
 // === Media Session API ===
@@ -545,7 +559,7 @@ async function updateMediaSession(fileName, url) {
 
   if ("mediaSession" in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: fileName,
+      title: fileName.split("/").pop(),
       artist: "再生サイト",
       album: "再生中",
       artwork: artwork
