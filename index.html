@@ -306,10 +306,15 @@ async function loadTracks() {
   tracks = [];
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
+
+  // ツリー構築（UI表示用）
   await buildFolderTree("", listContainer);
+
+  // 全曲収集（フォルダ開かなくてもランダム用に全部 tracks に入れる）
+  await collectAllTracks("");
 }
 
-// 再帰的にフォルダツリーを作成
+// UI用：再帰的にフォルダツリーを作成
 async function buildFolderTree(path, parentElement) {
   const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
   const res = await fetch(url);
@@ -337,7 +342,6 @@ async function buildFolderTree(path, parentElement) {
       parentElement.appendChild(li);
     } else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
       const fullKey = path + item.name;
-      tracks.push(fullKey);
 
       const li = document.createElement("li");
       const link = document.createElement("a");
@@ -378,6 +382,25 @@ async function buildFolderTree(path, parentElement) {
     }
   }
 }
+
+// 内部用：再帰的に全曲を tracks に入れる（ランダム用）
+async function collectAllTracks(path) {
+  const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
+  const res = await fetch(url);
+  const items = await res.json();
+
+  for (let item of items) {
+    if (item.type === "dir") {
+      await collectAllTracks(path + item.name + "/");
+    } else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
+      const fullKey = path + item.name;
+      if (!tracks.includes(fullKey)) {
+        tracks.push(fullKey);
+      }
+    }
+  }
+}
+
 
 async function loadLyrics() {
   try {
