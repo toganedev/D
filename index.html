@@ -26,9 +26,6 @@
       color: #fff;
     }
     header h1 { margin: 0; }
-    .header-center {
-      font-size: 14px;
-    }
     .creator-card {
       display: flex;
       align-items: center;
@@ -44,7 +41,7 @@
       margin: auto;
       padding: 1.5rem;
     }
-    ul { list-style: none; padding: 0; }
+    ul { list-style: none; padding: 0; margin: 0; }
     li { margin: 0.4rem 0; }
     a {
       color: #5a7d9a;
@@ -176,6 +173,29 @@
     .lyrics-btn:hover {
       background: #7aa9b6;
     }
+    /* ツリー用 */
+    .folder {
+      cursor: pointer;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .folder::before {
+      content: "▶";
+      display: inline-block;
+      transition: transform 0.2s;
+    }
+    .folder.open::before {
+      content: "▼";
+    }
+    .nested {
+      display: none;
+      margin-left: 1rem;
+    }
+    .nested.open {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -189,7 +209,7 @@
 <div id="main-content" style="display:none;">
   <header>
     <h1>曲再生サイト</h1>
-    <div class="header-center" id="japan-time"></div>
+    <div id="japan-time" style="font-size:14px; margin-left:20px;"></div>
     <div class="creator-card">
       <img src="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png" alt="icon">
       <div>
@@ -200,13 +220,13 @@
   </header>
   <main>
     <div class="controls">
-      <button onclick="startPlayback()">スタート</button>
-      <button onclick="stopPlayback()">ストップ</button>
       <button onclick="playRandom()">ランダム</button>
       <button onclick="prevTrack()">戻る</button>
       <button onclick="nextTrack()">スキップ</button>
       <button onclick="toggleRepeat()" id="repeat-btn">リピートOFF</button>
       <button onclick="toggleFavorites()" id="favorites-btn">⭐ お気に入りだけ</button>
+      <button onclick="startPlayback()">▶ スタート</button>
+      <button onclick="stopPlayback()">■ ストップ</button>
     </div>
     <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
@@ -232,11 +252,11 @@
 </div>
 
 <footer>
-  ver1.8
+  ver1.9
 </footer>
 
 <script>
-let tracks = [];
+let tracks = []; 
 let currentList = [];
 let currentIndex = 0;
 let isRepeat = false;
@@ -247,22 +267,6 @@ const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main
 let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 let showFavoritesOnly = false;
 let lyricsData = [];
-
-// === 日本時間の表示 ===
-function updateJapanTime() {
-  const now = new Date();
-  const jst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-  const y = jst.getUTCFullYear();
-  const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(jst.getUTCDate()).padStart(2, "0");
-  const hh = String(jst.getUTCHours()).padStart(2, "0");
-  const mm = String(jst.getUTCMinutes()).padStart(2, "0");
-  const days = ["日","月","火","水","木","金","土"];
-  const w = days[jst.getUTCDay()];
-  document.getElementById("japan-time").textContent = `${y}/${m}/${d}/${hh}:${mm}（${w}）`;
-}
-setInterval(updateJapanTime, 1000);
-updateJapanTime();
 
 async function checkPassword() {
   const input = document.getElementById("password").value.trim();
@@ -276,6 +280,7 @@ async function checkPassword() {
     document.getElementById("main-content").style.display = "block";
     loadTracks();
     loadLyrics();
+    updateJapanTime();
   } else alert("パスワードが違います");
 }
 
@@ -283,102 +288,99 @@ document.getElementById("password").addEventListener("keydown", e => {
   if (e.key === "Enter") checkPassword();
 });
 
+function updateJapanTime() {
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const y = jst.getUTCFullYear();
+  const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(jst.getUTCDate()).padStart(2, "0");
+  const hh = String(jst.getUTCHours()).padStart(2, "0");
+  const mm = String(jst.getUTCMinutes()).padStart(2, "0");
+  const day = ["日","月","火","水","木","金","土"][jst.getUTCDay()];
+  document.getElementById("japan-time").textContent = `${y}/${m}/${d}/${hh}:${mm}（${day}）`;
+}
+
+// フォルダツリー読み込み
 async function loadTracks() {
-  const res = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents`);
-  const files = await res.json();
-  tracks = files
-    .filter(file => file.name.endsWith(".mp4") || file.name.endsWith(".m4a"))
-    .map(file => decodeURIComponent(file.name));
-  currentList = [...tracks];
-  renderTrackList();
+  const listContainer = document.getElementById("track-list");
+  listContainer.innerHTML = "";
+  await buildFolderTree("", listContainer);
+}
+
+// 再帰的にフォルダツリーを作成
+async function buildFolderTree(path, parentElement) {
+  const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
+  const res = await fetch(url);
+  const items = await res.json();
+
+  for (let item of items) {
+    if (item.type === "dir") {
+      const li = document.createElement("li");
+      const folder = document.createElement("div");
+      folder.textContent = item.name;
+      folder.className = "folder";
+      const nested = document.createElement("ul");
+      nested.className = "nested";
+
+      folder.addEventListener("click", async () => {
+        folder.classList.toggle("open");
+        nested.classList.toggle("open");
+        if (nested.childElementCount === 0) {
+          await buildFolderTree(path + item.name + "/", nested);
+        }
+      });
+
+      li.appendChild(folder);
+      li.appendChild(nested);
+      parentElement.appendChild(li);
+    } else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
+      const li = document.createElement("li");
+      const link = document.createElement("a");
+      link.href = "#";
+      link.textContent = item.name;
+      link.addEventListener("click", e => {
+        e.preventDefault();
+        playTrack(baseURL + path + encodeURIComponent(item.name), path + item.name);
+      });
+
+      const favBtn = document.createElement("button");
+      favBtn.textContent = favorites.includes(path + item.name) ? "⭐" : "☆";
+      favBtn.style.marginLeft = "8px";
+      favBtn.style.border = "none";
+      favBtn.style.background = "transparent";
+      favBtn.style.cursor = "pointer";
+      favBtn.addEventListener("click", e => {
+        e.stopPropagation();
+        toggleFavorite(path + item.name);
+      });
+
+      li.appendChild(link);
+      li.appendChild(favBtn);
+
+      const hasLyrics = lyricsData.some(entry => entry.file === (path + item.name));
+      if (hasLyrics) {
+        const lyricsBtn = document.createElement("button");
+        lyricsBtn.textContent = "歌詞";
+        lyricsBtn.className = "lyrics-btn";
+        lyricsBtn.addEventListener("click", e => {
+          e.stopPropagation();
+          showLyrics(path + item.name);
+        });
+        li.appendChild(lyricsBtn);
+      }
+
+      parentElement.appendChild(li);
+    }
+  }
 }
 
 async function loadLyrics() {
   try {
     const res = await fetch(baseURL + "kashi.json");
     lyricsData = await res.json();
-    renderTrackList();
   } catch (e) {
     console.error("歌詞データ読み込み失敗:", e);
   }
-}
-
-function renderTrackList() {
-  const listContainer = document.getElementById("track-list");
-  listContainer.innerHTML = "";
-
-  if (currentList.length === 0) {
-    listContainer.innerHTML = "<li>曲がありません</li>";
-    return;
-  }
-
-  // フォルダごとにまとめる
-  const grouped = {};
-  currentList.forEach(file => {
-    const parts = file.split("/");
-    const folder = parts.length > 1 ? parts[0] : "その他";
-    if (!grouped[folder]) grouped[folder] = [];
-    grouped[folder].push(file);
-  });
-
-  Object.keys(grouped).forEach(folder => {
-    const li = document.createElement("li");
-    const folderLink = document.createElement("a");
-    folderLink.href = "#";
-    folderLink.textContent = folder;
-    folderLink.addEventListener("click", e => {
-      e.preventDefault();
-      renderSongsInFolder(folder, grouped[folder]);
-    });
-    li.appendChild(folderLink);
-    listContainer.appendChild(li);
-  });
-}
-
-function renderSongsInFolder(folder, files) {
-  const listContainer = document.getElementById("track-list");
-  listContainer.innerHTML = `<li><a href="#" onclick="renderTrackList();return false;">⬅ 戻る</a></li>`;
-
-  files.forEach(file => {
-    const li = document.createElement("li");
-
-    const link = document.createElement("a");
-    link.href = "#";
-    link.textContent = file.split("/").pop();
-    link.addEventListener("click", e => {
-      e.preventDefault();
-      playTrackFromList(files, files.indexOf(file));
-    });
-
-    const favBtn = document.createElement("button");
-    favBtn.textContent = favorites.includes(file) ? "⭐" : "☆";
-    favBtn.style.marginLeft = "8px";
-    favBtn.style.border = "none";
-    favBtn.style.background = "transparent";
-    favBtn.style.cursor = "pointer";
-    favBtn.addEventListener("click", e => {
-      e.stopPropagation();
-      toggleFavorite(file);
-      renderSongsInFolder(folder, files);
-    });
-
-    li.appendChild(link);
-    li.appendChild(favBtn);
-
-    const hasLyrics = lyricsData.some(item => item.file === file);
-    if (hasLyrics) {
-      const lyricsBtn = document.createElement("button");
-      lyricsBtn.textContent = "歌詞";
-      lyricsBtn.className = "lyrics-btn";
-      lyricsBtn.addEventListener("click", e => {
-        e.stopPropagation();
-        showLyrics(file);
-      });
-      li.appendChild(lyricsBtn);
-    }
-
-    listContainer.appendChild(li);
-  });
 }
 
 function toggleFavorite(track) {
@@ -387,26 +389,49 @@ function toggleFavorite(track) {
   } else favorites.push(track);
 
   localStorage.setItem("favorites", JSON.stringify(favorites));
+  if (showFavoritesOnly) renderFavorites();
 }
 
 function toggleFavorites() {
   showFavoritesOnly = !showFavoritesOnly;
   document.getElementById("favorites-btn").textContent = showFavoritesOnly ? "📂 全曲表示" : "⭐ お気に入りだけ";
-  currentList = showFavoritesOnly ? [...favorites] : [...tracks];
-  renderTrackList();
+  if (showFavoritesOnly) renderFavorites();
+  else loadTracks();
 }
 
-function playTrackFromList(list, index) {
-  currentList = list;
-  playTrack(index);
+function renderFavorites() {
+  const listContainer = document.getElementById("track-list");
+  listContainer.innerHTML = "";
+  favorites.forEach(file => {
+    const li = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = file;
+    link.addEventListener("click", e => {
+      e.preventDefault();
+      playTrack(baseURL + file, file);
+    });
+
+    const favBtn = document.createElement("button");
+    favBtn.textContent = "⭐";
+    favBtn.style.marginLeft = "8px";
+    favBtn.style.border = "none";
+    favBtn.style.background = "transparent";
+    favBtn.style.cursor = "pointer";
+    favBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      toggleFavorite(file);
+    });
+
+    li.appendChild(link);
+    li.appendChild(favBtn);
+    listContainer.appendChild(li);
+  });
 }
 
-async function playTrack(index) {
-  if (index < 0 || index >= currentList.length) return;
-  currentIndex = index;
-  const trackName = currentList[index];
-  const url = baseURL + encodeURIComponent(trackName);
-
+async function playTrack(url, fileKey) {
+  currentIndex = 0;
+  currentList = [fileKey]; // 単曲ベースに
   const audioPlayer = document.getElementById("player");
   const videoFrame = document.getElementById("video-frame");
   const videoPlayer = document.getElementById("video-player");
@@ -416,9 +441,9 @@ async function playTrack(index) {
   audioPlayer.play();
   videoFrame.play();
   videoPlayer.style.display = "block";
-  updateNowPlaying();
+  updateNowPlaying(fileKey);
 
-  updateMediaSession(trackName, url);
+  updateMediaSession(fileKey, url);
 
   audioPlayer.onended = () => {
     if (isRepeat) {
@@ -428,57 +453,40 @@ async function playTrack(index) {
       videoFrame.play();
     } else {
       videoPlayer.style.display = "none";
-      nextTrack();
     }
   };
 }
 
-function updateNowPlaying() {
-  const now = currentList[currentIndex] || "なし";
-  const next = currentList[(currentIndex + 1) % currentList.length] || "なし";
-  document.getElementById("now-playing").textContent = `再生中: ${now}\n次の曲: ${next}`;
+function updateNowPlaying(trackName) {
+  document.getElementById("now-playing").textContent = `再生中: ${trackName}`;
 }
 
-function nextTrack() { playTrack((currentIndex + 1) % currentList.length); }
-function prevTrack() { playTrack((currentIndex - 1 + currentList.length) % currentList.length); }
+function nextTrack() { /* シンプル: 今回は未実装 */ }
+function prevTrack() { /* シンプル: 今回は未実装 */ }
+
 function playRandom() {
-  currentList = shuffleArray([...tracks]);
-  playTrack(0);
+  const all = favorites.length > 0 && showFavoritesOnly ? favorites : tracks;
+  if (all.length === 0) return;
+  const randomIndex = Math.floor(Math.random() * all.length);
+  playTrack(baseURL + all[randomIndex], all[randomIndex]);
 }
+
 function startPlayback() {
-  if (currentList.length > 0) playTrack(0);
+  document.getElementById("player").play();
+  document.getElementById("video-frame").play();
 }
 function stopPlayback() {
-  const audioPlayer = document.getElementById("player");
-  const videoFrame = document.getElementById("video-frame");
-  const videoPlayer = document.getElementById("video-player");
-  audioPlayer.pause();
-  audioPlayer.src = "";
-  videoFrame.pause();
-  videoFrame.src = "";
-  videoPlayer.style.display = "none";
-  document.getElementById("now-playing").textContent = "再生中: なし\n次の曲: なし";
-}
-function shuffleArray(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+  document.getElementById("player").pause();
+  document.getElementById("video-frame").pause();
 }
 
-function filterTracks() {
-  const query = document.getElementById("search").value.toLowerCase();
-  let base = showFavoritesOnly ? favorites : tracks;
-  currentList = base.filter(t => t.toLowerCase().includes(query));
-  renderTrackList();
-}
-
+// === リピート切替 ===
 function toggleRepeat() {
   isRepeat = !isRepeat;
   document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
 }
 
+// === PiP ===
 document.getElementById("pip-btn").addEventListener("click", async () => {
   const video = document.getElementById("video-frame");
   if (document.pictureInPictureElement) await document.exitPictureInPicture();
@@ -491,7 +499,7 @@ async function updateMediaSession(fileName, url) {
 
   if (fileName.endsWith(".mp4")) {
     try {
-      artwork = [{ src: await getThumbnail(url), sizes: "512x512", type: "image/png" }];
+      artwork = [{ src: await getThumbnail(url, 7), sizes: "512x512", type: "image/png" }];
     } catch (e) {
       console.warn("サムネイル生成失敗", e);
     }
@@ -510,8 +518,8 @@ async function updateMediaSession(fileName, url) {
   }
 }
 
-// === mp4 サムネイル生成 ===
-function getThumbnail(url) {
+// === mp4 サムネイル生成（7秒地点）===
+function getThumbnail(url, seconds = 7) {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
     video.src = url;
@@ -519,9 +527,8 @@ function getThumbnail(url) {
     video.muted = true;
 
     video.addEventListener("loadedmetadata", () => {
-      // 7秒地点（動画が短い場合は最後の直前）
-      const captureTime = Math.min(7, video.duration - 0.1);
-      video.currentTime = captureTime;
+      if (seconds > video.duration) seconds = Math.floor(video.duration / 2);
+      video.currentTime = seconds;
     });
 
     video.addEventListener("seeked", () => {
@@ -536,22 +543,6 @@ function getThumbnail(url) {
     video.addEventListener("error", reject);
   });
 }
-
-// 歌詞表示
-function showLyrics(track) {
-  const match = lyricsData.find(item => item.file === track);
-  if (match) {
-    document.getElementById("lyrics-content").textContent = match.lyrics;
-    document.getElementById("lyrics-modal").style.display = "flex";
-  }
-}
-
-// モーダル閉じる
-document.getElementById("lyrics-modal").addEventListener("click", e => {
-  if (e.target.id === "lyrics-modal") {
-    document.getElementById("lyrics-modal").style.display = "none";
-  }
-});
 </script>
 </body>
 </html>
