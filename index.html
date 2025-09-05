@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver2.9
+  ver3.03.0
 </footer>
 
 <script>
@@ -314,14 +314,25 @@ async function loadTracks() {
   listContainer.innerHTML = "";
 
   try {
-    await buildFolderTree("", listContainer);  // UI & 内部tracks両方に追加
+    // GitHub API でツリー構築
+    await buildFolderTree("", listContainer);
   } catch (e) {
-    console.error("曲一覧の読み込みに失敗:", e);
-    listContainer.textContent = "曲一覧の読み込みに失敗しました。";
+    console.error("GitHub API失敗 → tracks.jsonを使う:", e);
+    try {
+      // fallback: tracks.jsonからロード
+      const res = await fetch(baseURL + "tracks.json");
+      if (!res.ok) throw new Error("tracks.jsonの読み込みに失敗");
+      const data = await res.json();
+      tracks = data;
+      renderFromJson(tracks, listContainer);
+    } catch (err) {
+      console.error("tracks.jsonも失敗:", err);
+      listContainer.textContent = "曲一覧の読み込みに失敗しました。";
+    }
   }
 }
 
-// ツリー表示用
+// GitHub API 用のツリー構築
 async function buildFolderTree(path, parentElement) {
   const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
   const res = await fetch(url);
@@ -348,9 +359,12 @@ async function buildFolderTree(path, parentElement) {
       li.appendChild(folder);
       li.appendChild(nested);
       parentElement.appendChild(li);
-    } else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
+    } else if (
+      item.type === "file" &&
+      (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))
+    ) {
       const fullKey = path + item.name;
-      if (!tracks.includes(fullKey)) tracks.push(fullKey); // ←ここで全曲に追加
+      if (!tracks.includes(fullKey)) tracks.push(fullKey);
 
       const li = document.createElement("li");
       const link = document.createElement("a");
@@ -358,7 +372,7 @@ async function buildFolderTree(path, parentElement) {
       link.textContent = item.name;
       link.addEventListener("click", e => {
         e.preventDefault();
-        playTrack(baseURL + path + encodeURIComponent(item.name), fullKey);
+        playTrack(baseURL + fullKey, fullKey);
       });
 
       const favBtn = document.createElement("button");
@@ -393,6 +407,37 @@ async function buildFolderTree(path, parentElement) {
   }
 }
 
+// fallback用: tracks.jsonからリストを描画
+function renderFromJson(trackArray, parentElement) {
+  trackArray.forEach(fullKey => {
+    const fileName = fullKey.split("/").pop();
+    const li = document.createElement("li");
+
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = fileName;
+    link.addEventListener("click", e => {
+      e.preventDefault();
+      playTrack(baseURL + fullKey, fullKey);
+    });
+
+    const favBtn = document.createElement("button");
+    favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
+    favBtn.style.marginLeft = "8px";
+    favBtn.style.border = "none";
+    favBtn.style.background = "transparent";
+    favBtn.style.cursor = "pointer";
+    favBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      toggleFavorite(fullKey);
+      favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
+    });
+
+    li.appendChild(link);
+    li.appendChild(favBtn);
+    parentElement.appendChild(li);
+  });
+}
 
 // 全曲収集
 async function collectAllTracks(path) {
