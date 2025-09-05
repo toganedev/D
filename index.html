@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver2.1
+  ver2.2
 </footer>
 
 <script>
@@ -514,9 +514,55 @@ function nextTrack() {
     playTrack(baseURL + currentKey, currentKey);
   }
 }
+let playHistory = [];  // 再生履歴を保存する配列
+
+async function playTrack(url, fileKey) {
+  // 履歴管理：同じ曲を連続で入れないようにする
+  if (playHistory.length === 0 || playHistory[playHistory.length - 1] !== fileKey) {
+    playHistory.push(fileKey);
+  }
+
+  currentIndex = 0;
+  currentList = [fileKey];
+  const audioPlayer = document.getElementById("player");
+  const videoFrame = document.getElementById("video-frame");
+  const videoPlayer = document.getElementById("video-player");
+
+  audioPlayer.src = url;
+  videoFrame.src = url;
+  audioPlayer.play();
+  videoFrame.play();
+  videoPlayer.style.display = "block";
+
+  updateNowPlaying(fileKey);
+  updateMediaSession(fileKey, url);
+
+  audioPlayer.onended = () => {
+    if (isRepeat) {
+      audioPlayer.currentTime = 0;
+      videoFrame.currentTime = 0;
+      audioPlayer.play();
+      videoFrame.play();
+    } else if (nextTrackKey) {
+      playTrack(baseURL + nextTrackKey, nextTrackKey);
+    } else {
+      videoPlayer.style.display = "none";
+    }
+  };
+}
 
 function prevTrack() {
-  // シンプルに未実装
+  if (playHistory.length > 1) {
+    // 現在の曲を削除
+    playHistory.pop();
+    // 1つ前の曲を取り出す
+    const prevKey = playHistory.pop();
+    if (prevKey) {
+      playTrack(baseURL + prevKey, prevKey);
+    }
+  } else {
+    alert("前の曲はありません");
+  }
 }
 
 function startPlayback() {
