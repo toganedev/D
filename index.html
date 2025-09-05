@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver3.0
+  ver3.1
 </footer>
 
 <script>
@@ -535,10 +535,20 @@ async function playTrack(url, fileKey) {
   const videoFrame = document.getElementById("video-frame");
   const videoPlayer = document.getElementById("video-player");
 
+  // 音声側
   audioPlayer.src = url;
-  videoFrame.src = url;
   audioPlayer.play();
-  videoFrame.play();
+
+  // 映像側
+  videoFrame.src = url;
+  videoFrame.load(); // 強制リロード
+  videoFrame.onloadedmetadata = () => {
+    videoFrame.currentTime = 0;
+    videoFrame.play().catch(err => {
+      console.warn("video autoplay error:", err);
+    });
+  };
+
   videoPlayer.style.display = "block";
 
   updateNowPlaying(fileKey);
