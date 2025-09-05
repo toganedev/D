@@ -357,11 +357,11 @@ async function buildFolderTree(path, parentElement) {
       favBtn.style.border = "none";
       favBtn.style.background = "transparent";
       favBtn.style.cursor = "pointer";
-     favBtn.addEventListener("click", e => {
-  e.stopPropagation();
-  toggleFavorite(fullKey);
-  favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆"; // ←追加
-});
+      favBtn.addEventListener("click", e => {
+        e.stopPropagation();
+        toggleFavorite(fullKey);
+        favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
+      });
 
       li.appendChild(link);
       li.appendChild(favBtn);
@@ -417,6 +417,7 @@ function showLyrics(fileName) {
 document.getElementById("lyrics-modal").addEventListener("click", () => {
   document.getElementById("lyrics-modal").style.display = "none";
 });
+
 // === お気に入り ===
 function toggleFavorite(track) {
   if (favorites.includes(track)) {
@@ -425,13 +426,7 @@ function toggleFavorite(track) {
     favorites.push(track);
   }
   localStorage.setItem("favorites", JSON.stringify(favorites));
-  // ボタンの表示更新
-  const btns = document.querySelectorAll("button");
-  btns.forEach(btn => {
-    if (btn.nextSibling && btn.nextSibling.textContent === track.split("/").pop()) {
-      btn.textContent = favorites.includes(track) ? "⭐" : "☆";
-    }
-  });
+
   if (showFavoritesOnly) renderFavorites();
 }
 
@@ -474,7 +469,7 @@ function renderFavorites() {
 
 // === 再生 ===
 async function playTrack(url, fileKey) {
-  if (playHistory.length === 0 || playHistory[playHistory.length - 1] !== fileKey) {
+  if (!isRepeat && (playHistory.length === 0 || playHistory[playHistory.length - 1] !== fileKey)) {
     playHistory.push(fileKey);
   }
 
@@ -495,13 +490,10 @@ async function playTrack(url, fileKey) {
 
   audioPlayer.onended = () => {
     if (isRepeat) {
-      // リピート再生
-      playTrack(url, fileKey);
+      playTrack(url, fileKey); // 履歴に追加されないように調整済み
     } else if (nextTrackKey) {
-      // 次の曲へ
       playTrack(baseURL + nextTrackKey, nextTrackKey);
     } else {
-      // 停止
       videoPlayer.style.display = "none";
     }
   };
@@ -587,9 +579,11 @@ function getThumbnail(url, seconds = 7) {
     const video = document.createElement("video");
     video.src = url;
     video.crossOrigin = "anonymous";
-    video.currentTime = seconds;
     video.muted = true;
-    video.addEventListener("loadeddata", () => {
+    video.addEventListener("loadedmetadata", () => {
+      video.currentTime = seconds;
+    });
+    video.addEventListener("seeked", () => {
       const canvas = document.createElement("canvas");
       canvas.width = 512;
       canvas.height = 512;
