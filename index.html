@@ -491,7 +491,7 @@ async function updateMediaSession(fileName, url) {
 
   if (fileName.endsWith(".mp4")) {
     try {
-            artwork = [{ src: await getThumbnail(url), sizes: "512x512", type: "image/png" }];
+      artwork = [{ src: await getThumbnail(url), sizes: "512x512", type: "image/png" }];
     } catch (e) {
       console.warn("サムネイル生成失敗", e);
     }
@@ -517,8 +517,14 @@ function getThumbnail(url) {
     video.src = url;
     video.crossOrigin = "anonymous";
     video.muted = true;
-    video.currentTime = 1;
-    video.addEventListener("loadeddata", () => {
+
+    video.addEventListener("loadedmetadata", () => {
+      // 7秒地点（動画が短い場合は最後の直前）
+      const captureTime = Math.min(7, video.duration - 0.1);
+      video.currentTime = captureTime;
+    });
+
+    video.addEventListener("seeked", () => {
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth / 4;
       canvas.height = video.videoHeight / 4;
@@ -526,6 +532,7 @@ function getThumbnail(url) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL("image/png"));
     });
+
     video.addEventListener("error", reject);
   });
 }
@@ -548,4 +555,3 @@ document.getElementById("lyrics-modal").addEventListener("click", e => {
 </script>
 </body>
 </html>
-
