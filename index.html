@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver2.6
+  ver2.7
 </footer>
 
 <script>
@@ -417,21 +417,31 @@ function showLyrics(fileName) {
 document.getElementById("lyrics-modal").addEventListener("click", () => {
   document.getElementById("lyrics-modal").style.display = "none";
 });
-
 // === お気に入り ===
 function toggleFavorite(track) {
   if (favorites.includes(track)) {
     favorites = favorites.filter(f => f !== track);
-  } else favorites.push(track);
+  } else {
+    favorites.push(track);
+  }
   localStorage.setItem("favorites", JSON.stringify(favorites));
+  // ボタンの表示更新
+  const btns = document.querySelectorAll("button");
+  btns.forEach(btn => {
+    if (btn.nextSibling && btn.nextSibling.textContent === track.split("/").pop()) {
+      btn.textContent = favorites.includes(track) ? "⭐" : "☆";
+    }
+  });
   if (showFavoritesOnly) renderFavorites();
 }
+
 function toggleFavorites() {
   showFavoritesOnly = !showFavoritesOnly;
   document.getElementById("favorites-btn").textContent = showFavoritesOnly ? "📂 全曲表示" : "⭐ お気に入りだけ";
   if (showFavoritesOnly) renderFavorites();
   else loadTracks();
 }
+
 function renderFavorites() {
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
@@ -454,6 +464,7 @@ function renderFavorites() {
     favBtn.addEventListener("click", e => {
       e.stopPropagation();
       toggleFavorite(file);
+      favBtn.textContent = favorites.includes(file) ? "⭐" : "☆";
     });
     li.appendChild(link);
     li.appendChild(favBtn);
@@ -482,28 +493,26 @@ async function playTrack(url, fileKey) {
   updateNowPlaying(fileKey);
   updateMediaSession(fileKey, url);
 
-audioPlayer.onended = () => {
-  if (isRepeat) {
-    // リピート再生
-    audioPlayer.currentTime = 0;
-    videoFrame.currentTime = 0;
-    audioPlayer.play();
-    videoFrame.play();
-  } else if (nextTrackKey) {
-    // 次の曲へ
-    playTrack(baseURL + nextTrackKey, nextTrackKey);
-  } else {
-    // 停止
-    videoPlayer.style.display = "none";
-  }
-};
-
+  audioPlayer.onended = () => {
+    if (isRepeat) {
+      // リピート再生
+      playTrack(url, fileKey);
+    } else if (nextTrackKey) {
+      // 次の曲へ
+      playTrack(baseURL + nextTrackKey, nextTrackKey);
+    } else {
+      // 停止
+      videoPlayer.style.display = "none";
+    }
+  };
 }
+
 function updateNowPlaying(trackName) {
   const currentName = trackName.split("/").pop();
   const nextName = nextTrackKey ? nextTrackKey.split("/").pop() : "なし";
   document.getElementById("now-playing").textContent = `再生中: ${currentName}\n次の曲: ${nextName}`;
 }
+
 function playRandom() {
   const all = showFavoritesOnly ? favorites : tracks;
   if (all.length === 0) return;
@@ -516,6 +525,7 @@ function playRandom() {
   nextTrackKey = all[nextIndex];
   playTrack(baseURL + currentKey, currentKey);
 }
+
 function nextTrack() {
   if (nextTrackKey) {
     const all = showFavoritesOnly ? favorites : tracks;
@@ -530,6 +540,7 @@ function nextTrack() {
     playRandom();
   }
 }
+
 function prevTrack() {
   if (playHistory.length > 1) {
     playHistory.pop();
@@ -539,16 +550,19 @@ function prevTrack() {
     alert("前の曲はありません");
   }
 }
+
 function toggleRepeat() {
   isRepeat = !isRepeat;
   document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
 }
+
 function startPlayback() {
   const p = document.getElementById("player");
   const v = document.getElementById("video-frame");
   if (p) p.play();
   if (v) v.play();
 }
+
 function stopPlayback() {
   const p = document.getElementById("player");
   const v = document.getElementById("video-frame");
