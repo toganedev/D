@@ -340,7 +340,8 @@ async function buildFolderTree(path, parentElement) {
       li.appendChild(folder);
       li.appendChild(nested);
       parentElement.appendChild(li);
-    } else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
+    } 
+    else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
       const fullKey = path + item.name;
 
       const li = document.createElement("li");
@@ -382,6 +383,7 @@ async function buildFolderTree(path, parentElement) {
     }
   }
 }
+
 
 // 内部用：再帰的に全曲を tracks に入れる（ランダム用）
 async function collectAllTracks(path) {
