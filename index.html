@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver2.3
+  ver2.4
 </footer>
 
 <script>
@@ -268,7 +268,9 @@ const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main
 let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 let showFavoritesOnly = false;
 let lyricsData = [];
+let playHistory = [];  // 再生履歴を保存する配列
 
+// === パスワード認証 ===
 async function checkPassword() {
   const input = document.getElementById("password").value.trim();
   if (!input) return alert("パスワードを入力してください");
@@ -284,11 +286,11 @@ async function checkPassword() {
     updateJapanTime();
   } else alert("パスワードが違います");
 }
-
 document.getElementById("password").addEventListener("keydown", e => {
   if (e.key === "Enter") checkPassword();
 });
 
+// === 時刻表示 ===
 function updateJapanTime() {
   const now = new Date();
   const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
@@ -301,20 +303,16 @@ function updateJapanTime() {
   document.getElementById("japan-time").textContent = `${y}/${m}/${d}/${hh}:${mm}（${day}）`;
 }
 
-// フォルダツリー読み込み
+// === 曲一覧読み込み ===
 async function loadTracks() {
   tracks = [];
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
-
-  // ツリー構築（UI表示用）
-  await buildFolderTree("", listContainer);
-
-  // 全曲収集（フォルダ開かなくてもランダム用に全部 tracks に入れる）
-  await collectAllTracks("");
+  await buildFolderTree("", listContainer);  // UI
+  await collectAllTracks("");               // 内部全曲
 }
 
-// UI用：再帰的にフォルダツリーを作成
+// ツリー表示用
 async function buildFolderTree(path, parentElement) {
   const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
   const res = await fetch(url);
@@ -384,26 +382,22 @@ async function buildFolderTree(path, parentElement) {
   }
 }
 
-
-// 内部用：再帰的に全曲を tracks に入れる（ランダム用）
+// 全曲収集
 async function collectAllTracks(path) {
   const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
   const res = await fetch(url);
   const items = await res.json();
-
   for (let item of items) {
     if (item.type === "dir") {
       await collectAllTracks(path + item.name + "/");
     } else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
       const fullKey = path + item.name;
-      if (!tracks.includes(fullKey)) {
-        tracks.push(fullKey);
-      }
+      if (!tracks.includes(fullKey)) tracks.push(fullKey);
     }
   }
 }
 
-
+// === 歌詞 ===
 async function loadLyrics() {
   try {
     const res = await fetch(baseURL + "kashi.json");
@@ -412,7 +406,6 @@ async function loadLyrics() {
     console.error("歌詞データ読み込み失敗:", e);
   }
 }
-
 function showLyrics(fileName) {
   const entry = lyricsData.find(e => e.file === fileName);
   if (entry) {
@@ -420,27 +413,24 @@ function showLyrics(fileName) {
     document.getElementById("lyrics-modal").style.display = "flex";
   }
 }
-
 document.getElementById("lyrics-modal").addEventListener("click", () => {
   document.getElementById("lyrics-modal").style.display = "none";
 });
 
+// === お気に入り ===
 function toggleFavorite(track) {
   if (favorites.includes(track)) {
     favorites = favorites.filter(f => f !== track);
   } else favorites.push(track);
-
   localStorage.setItem("favorites", JSON.stringify(favorites));
   if (showFavoritesOnly) renderFavorites();
 }
-
 function toggleFavorites() {
   showFavoritesOnly = !showFavoritesOnly;
   document.getElementById("favorites-btn").textContent = showFavoritesOnly ? "📂 全曲表示" : "⭐ お気に入りだけ";
   if (showFavoritesOnly) renderFavorites();
   else loadTracks();
 }
-
 function renderFavorites() {
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
@@ -454,7 +444,6 @@ function renderFavorites() {
       e.preventDefault();
       playTrack(baseURL + file, file);
     });
-
     const favBtn = document.createElement("button");
     favBtn.textContent = "⭐";
     favBtn.style.marginLeft = "8px";
@@ -465,84 +454,14 @@ function renderFavorites() {
       e.stopPropagation();
       toggleFavorite(file);
     });
-
     li.appendChild(link);
     li.appendChild(favBtn);
     listContainer.appendChild(li);
   });
 }
 
+// === 再生 ===
 async function playTrack(url, fileKey) {
-  currentIndex = 0;
-  currentList = [fileKey];
-  const audioPlayer = document.getElementById("player");
-  const videoFrame = document.getElementById("video-frame");
-  const videoPlayer = document.getElementById("video-player");
-
-  audioPlayer.src = url;
-  videoFrame.src = url;
-  audioPlayer.play();
-  videoFrame.play();
-  videoPlayer.style.display = "block";
-
-  updateNowPlaying(fileKey);
-
-  updateMediaSession(fileKey, url);
-
-  audioPlayer.onended = () => {
-    if (isRepeat) {
-      audioPlayer.currentTime = 0;
-      videoFrame.currentTime = 0;
-      audioPlayer.play();
-      videoFrame.play();
-    } else if (nextTrackKey) {
-      playTrack(baseURL + nextTrackKey, nextTrackKey);
-    } else {
-      videoPlayer.style.display = "none";
-    }
-  };
-}
-
-function updateNowPlaying(trackName) {
-  const nextName = nextTrackKey ? nextTrackKey.split("/").pop() : "なし";
-  document.getElementById("now-playing").textContent = `再生中: ${trackName}\n次の曲: ${nextName}`;
-}
-
-function playRandom() {
-  const all = showFavoritesOnly ? favorites : tracks;
-  if (all.length === 0) return;
-
-  const randomIndex = Math.floor(Math.random() * all.length);
-  const currentKey = all[randomIndex];
-  let nextIndex = Math.floor(Math.random() * all.length);
-  if (all.length > 1) {
-    while (nextIndex === randomIndex) {
-      nextIndex = Math.floor(Math.random() * all.length);
-    }
-  }
-  nextTrackKey = all[nextIndex];
-
-  playTrack(baseURL + currentKey, currentKey);
-}
-
-function nextTrack() {
-  if (nextTrackKey) {
-    const all = showFavoritesOnly ? favorites : tracks;
-    const currentKey = nextTrackKey;
-    let nextIndex = Math.floor(Math.random() * all.length);
-    if (all.length > 1) {
-      while (all[nextIndex] === currentKey) {
-        nextIndex = Math.floor(Math.random() * all.length);
-      }
-    }
-    nextTrackKey = all[nextIndex];
-    playTrack(baseURL + currentKey, currentKey);
-  }
-}
-let playHistory = [];  // 再生履歴を保存する配列
-
-async function playTrack(url, fileKey) {
-  // 履歴管理：同じ曲を連続で入れないようにする
   if (playHistory.length === 0 || playHistory[playHistory.length - 1] !== fileKey) {
     playHistory.push(fileKey);
   }
@@ -575,35 +494,110 @@ async function playTrack(url, fileKey) {
     }
   };
 }
-
+function updateNowPlaying(trackName) {
+  const currentName = trackName.split("/").pop();
+  const nextName = nextTrackKey ? nextTrackKey.split("/").pop() : "なし";
+  document.getElementById("now-playing").textContent = `再生中: ${currentName}\n次の曲: ${nextName}`;
+}
+function playRandom() {
+  const all = showFavoritesOnly ? favorites : tracks;
+  if (all.length === 0) return;
+  const randomIndex = Math.floor(Math.random() * all.length);
+  const currentKey = all[randomIndex];
+  let nextIndex = Math.floor(Math.random() * all.length);
+  if (all.length > 1) {
+    while (nextIndex === randomIndex) nextIndex = Math.floor(Math.random() * all.length);
+  }
+  nextTrackKey = all[nextIndex];
+  playTrack(baseURL + currentKey, currentKey);
+}
+function nextTrack() {
+  if (nextTrackKey) {
+    const all = showFavoritesOnly ? favorites : tracks;
+    const currentKey = nextTrackKey;
+    let nextIndex = Math.floor(Math.random() * all.length);
+    if (all.length > 1) {
+      while (all[nextIndex] === currentKey) nextIndex = Math.floor(Math.random() * all.length);
+    }
+    nextTrackKey = all[nextIndex];
+    playTrack(baseURL + currentKey, currentKey);
+  } else {
+    playRandom();
+  }
+}
 function prevTrack() {
   if (playHistory.length > 1) {
-    // 現在の曲を削除
     playHistory.pop();
-    // 1つ前の曲を取り出す
     const prevKey = playHistory.pop();
-    if (prevKey) {
-      playTrack(baseURL + prevKey, prevKey);
-    }
+    if (prevKey) playTrack(baseURL + prevKey, prevKey);
   } else {
     alert("前の曲はありません");
   }
 }
-
-function startPlayback() {
-  document.getElementById("player").play();
-  document.getElementById("video-frame").play();
-}
-
-function stopPlayback() {
-  document.getElementById("player").pause();
-  document.getElementById("video-frame").pause();
-}
-
-// === リピート切替 ===
 function toggleRepeat() {
   isRepeat = !isRepeat;
   document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
+}
+function startPlayback() {
+  const p = document.getElementById("player");
+  const v = document.getElementById("video-frame");
+  if (p) p.play();
+  if (v) v.play();
+}
+function stopPlayback() {
+  const p = document.getElementById("player");
+  const v = document.getElementById("video-frame");
+  if (p) p.pause();
+  if (v) v.pause();
+}
+
+// === 検索 ===
+function filterTracks() {
+  const query = document.getElementById("search").value.toLowerCase();
+  const links = document.querySelectorAll("#track-list li a");
+  links.forEach(link => {
+    const li = link.parentElement;
+    const text = link.textContent.toLowerCase();
+    li.style.display = text.includes(query) ? "" : "none";
+  });
+}
+
+// === サムネイル生成（7秒地点）===
+function getThumbnail(url, seconds = 7) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.src = url;
+    video.crossOrigin = "anonymous";
+    video.currentTime = seconds;
+    video.muted = true;
+    video.addEventListener("loadeddata", () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, 512, 512);
+      canvas.toBlob(blob => {
+        resolve(URL.createObjectURL(blob));
+      }, "image/png");
+    });
+    video.addEventListener("error", reject);
+  });
+}
+
+// === MediaSession API ===
+async function updateMediaSession(fileKey, url) {
+  if ("mediaSession" in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: fileKey.split("/").pop(),
+      artist: "不明",
+      album: "フォルダ音楽",
+      artwork: [{ src: await getThumbnail(url), sizes: "512x512", type: "image/png" }]
+    });
+    navigator.mediaSession.setActionHandler("play", startPlayback);
+    navigator.mediaSession.setActionHandler("pause", stopPlayback);
+    navigator.mediaSession.setActionHandler("previoustrack", prevTrack);
+    navigator.mediaSession.setActionHandler("nexttrack", nextTrack);
+  }
 }
 
 // === PiP ===
@@ -615,57 +609,6 @@ document.getElementById("pip-btn").addEventListener("click", async () => {
     await video.requestPictureInPicture();
   }
 });
-
-// === Media Session API ===
-async function updateMediaSession(fileName, url) {
-  let artwork = [{ src: "https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png", sizes: "512x512", type: "image/png" }];
-
-  if (fileName.endsWith(".mp4")) {
-    try {
-      artwork = [{ src: await getThumbnail(url, 7), sizes: "512x512", type: "image/png" }];
-    } catch (e) {
-      console.warn("サムネイル生成失敗", e);
-    }
-  }
-
-  if ("mediaSession" in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: fileName.split("/").pop(),
-      artist: "再生サイト",
-      album: "再生中",
-      artwork: artwork
-    });
-
-    navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
-    navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
-  }
-}
-
-// === mp4 サムネイル生成（7秒地点）===
-function getThumbnail(url, seconds = 7) {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    video.src = url;
-    video.crossOrigin = "anonymous";
-    video.muted = true;
-
-    video.addEventListener("loadedmetadata", () => {
-      if (seconds > video.duration) seconds = Math.floor(video.duration / 2);
-      video.currentTime = seconds;
-    });
-
-    video.addEventListener("seeked", () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth / 4;
-      canvas.height = video.videoHeight / 4;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/png"));
-    });
-
-    video.addEventListener("error", reject);
-  });
-}
 </script>
 </body>
 </html>
