@@ -26,6 +26,9 @@
       color: #fff;
     }
     header h1 { margin: 0; }
+    .header-center {
+      font-size: 14px;
+    }
     .creator-card {
       display: flex;
       align-items: center;
@@ -186,6 +189,7 @@
 <div id="main-content" style="display:none;">
   <header>
     <h1>曲再生サイト</h1>
+    <div class="header-center" id="japan-time"></div>
     <div class="creator-card">
       <img src="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png" alt="icon">
       <div>
@@ -196,6 +200,8 @@
   </header>
   <main>
     <div class="controls">
+      <button onclick="startPlayback()">スタート</button>
+      <button onclick="stopPlayback()">ストップ</button>
       <button onclick="playRandom()">ランダム</button>
       <button onclick="prevTrack()">戻る</button>
       <button onclick="nextTrack()">スキップ</button>
@@ -226,7 +232,7 @@
 </div>
 
 <footer>
-  ver1.7
+  ver1.8
 </footer>
 
 <script>
@@ -241,6 +247,22 @@ const baseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main
 let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 let showFavoritesOnly = false;
 let lyricsData = [];
+
+// === 日本時間の表示 ===
+function updateJapanTime() {
+  const now = new Date();
+  const jst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  const y = jst.getUTCFullYear();
+  const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(jst.getUTCDate()).padStart(2, "0");
+  const hh = String(jst.getUTCHours()).padStart(2, "0");
+  const mm = String(jst.getUTCMinutes()).padStart(2, "0");
+  const days = ["日","月","火","水","木","金","土"];
+  const w = days[jst.getUTCDay()];
+  document.getElementById("japan-time").textContent = `${y}/${m}/${d}/${hh}:${mm}（${w}）`;
+}
+setInterval(updateJapanTime, 1000);
+updateJapanTime();
 
 async function checkPassword() {
   const input = document.getElementById("password").value.trim();
@@ -290,15 +312,42 @@ function renderTrackList() {
     return;
   }
 
-  currentList.forEach((file) => {
+  // フォルダごとにまとめる
+  const grouped = {};
+  currentList.forEach(file => {
+    const parts = file.split("/");
+    const folder = parts.length > 1 ? parts[0] : "その他";
+    if (!grouped[folder]) grouped[folder] = [];
+    grouped[folder].push(file);
+  });
+
+  Object.keys(grouped).forEach(folder => {
+    const li = document.createElement("li");
+    const folderLink = document.createElement("a");
+    folderLink.href = "#";
+    folderLink.textContent = folder;
+    folderLink.addEventListener("click", e => {
+      e.preventDefault();
+      renderSongsInFolder(folder, grouped[folder]);
+    });
+    li.appendChild(folderLink);
+    listContainer.appendChild(li);
+  });
+}
+
+function renderSongsInFolder(folder, files) {
+  const listContainer = document.getElementById("track-list");
+  listContainer.innerHTML = `<li><a href="#" onclick="renderTrackList();return false;">⬅ 戻る</a></li>`;
+
+  files.forEach(file => {
     const li = document.createElement("li");
 
     const link = document.createElement("a");
     link.href = "#";
-    link.textContent = file;
+    link.textContent = file.split("/").pop();
     link.addEventListener("click", e => {
       e.preventDefault();
-      playTrack(currentList.indexOf(file));
+      playTrackFromList(files, files.indexOf(file));
     });
 
     const favBtn = document.createElement("button");
@@ -310,6 +359,7 @@ function renderTrackList() {
     favBtn.addEventListener("click", e => {
       e.stopPropagation();
       toggleFavorite(file);
+      renderSongsInFolder(folder, files);
     });
 
     li.appendChild(link);
@@ -337,7 +387,6 @@ function toggleFavorite(track) {
   } else favorites.push(track);
 
   localStorage.setItem("favorites", JSON.stringify(favorites));
-  renderTrackList();
 }
 
 function toggleFavorites() {
@@ -345,6 +394,11 @@ function toggleFavorites() {
   document.getElementById("favorites-btn").textContent = showFavoritesOnly ? "📂 全曲表示" : "⭐ お気に入りだけ";
   currentList = showFavoritesOnly ? [...favorites] : [...tracks];
   renderTrackList();
+}
+
+function playTrackFromList(list, index) {
+  currentList = list;
+  playTrack(index);
 }
 
 async function playTrack(index) {
@@ -388,8 +442,29 @@ function updateNowPlaying() {
 function nextTrack() { playTrack((currentIndex + 1) % currentList.length); }
 function prevTrack() { playTrack((currentIndex - 1 + currentList.length) % currentList.length); }
 function playRandom() {
-  const randomIndex = Math.floor(Math.random() * currentList.length);
-  playTrack(randomIndex);
+  currentList = shuffleArray([...tracks]);
+  playTrack(0);
+}
+function startPlayback() {
+  if (currentList.length > 0) playTrack(0);
+}
+function stopPlayback() {
+  const audioPlayer = document.getElementById("player");
+  const videoFrame = document.getElementById("video-frame");
+  const videoPlayer = document.getElementById("video-player");
+  audioPlayer.pause();
+  audioPlayer.src = "";
+  videoFrame.pause();
+  videoFrame.src = "";
+  videoPlayer.style.display = "none";
+  document.getElementById("now-playing").textContent = "再生中: なし\n次の曲: なし";
+}
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 function filterTracks() {
@@ -416,7 +491,7 @@ async function updateMediaSession(fileName, url) {
 
   if (fileName.endsWith(".mp4")) {
     try {
-      artwork = [{ src: await getThumbnail(url), sizes: "512x512", type: "image/png" }];
+            artwork = [{ src: await getThumbnail(url), sizes: "512x512", type: "image/png" }];
     } catch (e) {
       console.warn("サムネイル生成失敗", e);
     }
@@ -473,3 +548,4 @@ document.getElementById("lyrics-modal").addEventListener("click", e => {
 </script>
 </body>
 </html>
+
