@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver2.7
+  ver2.8
 </footer>
 
 <script>
@@ -308,14 +308,20 @@ async function loadTracks() {
   tracks = [];
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
-  await buildFolderTree("", listContainer);  // UI
-  await collectAllTracks("");               // 内部全曲
+
+  try {
+    await buildFolderTree("", listContainer);  // UI & 内部tracks両方に追加
+  } catch (e) {
+    console.error("曲一覧の読み込みに失敗:", e);
+    listContainer.textContent = "曲一覧の読み込みに失敗しました。";
+  }
 }
 
 // ツリー表示用
 async function buildFolderTree(path, parentElement) {
   const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
   const res = await fetch(url);
+  if (!res.ok) throw new Error(`GitHub APIエラー: ${res.status}`);
   const items = await res.json();
 
   for (let item of items) {
@@ -338,9 +344,9 @@ async function buildFolderTree(path, parentElement) {
       li.appendChild(folder);
       li.appendChild(nested);
       parentElement.appendChild(li);
-    } 
-    else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
+    } else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
       const fullKey = path + item.name;
+      if (!tracks.includes(fullKey)) tracks.push(fullKey); // ←ここで全曲に追加
 
       const li = document.createElement("li");
       const link = document.createElement("a");
@@ -382,6 +388,7 @@ async function buildFolderTree(path, parentElement) {
     }
   }
 }
+
 
 // 全曲収集
 async function collectAllTracks(path) {
