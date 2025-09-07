@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver3.1
+  ver3.2
 </footer>
 
 <script>
@@ -529,34 +529,42 @@ async function playTrack(url, fileKey) {
     playHistory.push(fileKey);
   }
 
-  currentIndex = 0;
-  currentList = [fileKey];
+  // 現在のリストとインデックスを決定
+  currentList = showFavoritesOnly ? favorites : tracks;
+  currentIndex = currentList.indexOf(fileKey);
+
   const audioPlayer = document.getElementById("player");
   const videoFrame = document.getElementById("video-frame");
   const videoPlayer = document.getElementById("video-player");
 
-  // 音声側
+  // 音声
   audioPlayer.src = url;
   audioPlayer.play();
 
-  // 映像側
+  // 映像
   videoFrame.src = url;
-  videoFrame.load(); // 強制リロード
+  videoFrame.load();
   videoFrame.onloadedmetadata = () => {
     videoFrame.currentTime = 0;
-    videoFrame.play().catch(err => {
-      console.warn("video autoplay error:", err);
-    });
+    videoFrame.play().catch(err => console.warn("video autoplay error:", err));
   };
-
   videoPlayer.style.display = "block";
+
+  // 次の曲を決定（リピートでない場合）
+  if (!isRepeat) {
+    if (currentIndex >= 0 && currentIndex < currentList.length - 1) {
+      nextTrackKey = currentList[currentIndex + 1];
+    } else {
+      nextTrackKey = currentList[0]; // 最後なら最初に戻る
+    }
+  }
 
   updateNowPlaying(fileKey);
   updateMediaSession(fileKey, url);
 
   audioPlayer.onended = () => {
     if (isRepeat) {
-      playTrack(url, fileKey); // 履歴に追加されないように調整済み
+      playTrack(url, fileKey);
     } else if (nextTrackKey) {
       playTrack(baseURL + nextTrackKey, nextTrackKey);
     } else {
@@ -571,56 +579,56 @@ function updateNowPlaying(trackName) {
   document.getElementById("now-playing").textContent = `再生中: ${currentName}\n次の曲: ${nextName}`;
 }
 
+// ランダム再生
 function playRandom() {
   const all = showFavoritesOnly ? favorites : tracks;
   if (all.length === 0) return;
   const randomIndex = Math.floor(Math.random() * all.length);
   const currentKey = all[randomIndex];
-  let nextIndex = Math.floor(Math.random() * all.length);
-  if (all.length > 1) {
-    while (nextIndex === randomIndex) nextIndex = Math.floor(Math.random() * all.length);
-  }
+  let nextIndex = (randomIndex + 1) % all.length;
   nextTrackKey = all[nextIndex];
   playTrack(baseURL + currentKey, currentKey);
 }
 
+// 次の曲
 function nextTrack() {
-  if (nextTrackKey) {
-    const all = showFavoritesOnly ? favorites : tracks;
-    const currentKey = nextTrackKey;
-    let nextIndex = Math.floor(Math.random() * all.length);
-    if (all.length > 1) {
-      while (all[nextIndex] === currentKey) nextIndex = Math.floor(Math.random() * all.length);
-    }
-    nextTrackKey = all[nextIndex];
-    playTrack(baseURL + currentKey, currentKey);
+  if (currentList.length === 0) return;
+  if (currentIndex >= 0 && currentIndex < currentList.length - 1) {
+    const nextKey = currentList[currentIndex + 1];
+    playTrack(baseURL + nextKey, nextKey);
   } else {
-    playRandom();
+    const firstKey = currentList[0];
+    playTrack(baseURL + firstKey, firstKey); // 最後なら最初に戻る
   }
 }
 
+// 前の曲
 function prevTrack() {
-  if (playHistory.length > 1) {
-    playHistory.pop();
-    const prevKey = playHistory.pop();
-    if (prevKey) playTrack(baseURL + prevKey, prevKey);
+  if (currentList.length === 0) return;
+  if (currentIndex > 0) {
+    const prevKey = currentList[currentIndex - 1];
+    playTrack(baseURL + prevKey, prevKey);
   } else {
-    alert("前の曲はありません");
+    const lastKey = currentList[currentList.length - 1];
+    playTrack(baseURL + lastKey, lastKey); // 最初なら最後に戻る
   }
 }
 
+// リピート
 function toggleRepeat() {
   isRepeat = !isRepeat;
   document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
 }
 
+// スタート（最初から順次再生）
 function startPlayback() {
-  const p = document.getElementById("player");
-  const v = document.getElementById("video-frame");
-  if (p) p.play();
-  if (v) v.play();
+  currentList = showFavoritesOnly ? favorites : tracks;
+  if (currentList.length === 0) return;
+  const firstKey = currentList[0];
+  playTrack(baseURL + firstKey, firstKey);
 }
 
+// ストップ
 function stopPlayback() {
   const p = document.getElementById("player");
   const v = document.getElementById("video-frame");
@@ -638,6 +646,7 @@ function filterTracks() {
     li.style.display = text.includes(query) ? "" : "none";
   });
 }
+
 
 // === サムネイル生成（7秒地点）===
 function getThumbnail(url, seconds = 7) {
