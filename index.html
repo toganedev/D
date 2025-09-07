@@ -227,6 +227,7 @@
       <button onclick="toggleFavorites()" id="favorites-btn">⭐ お気に入りだけ</button>
       <button onclick="startPlayback()">▶ スタート</button>
       <button onclick="stopPlayback()">■ ストップ</button>
+      <button onclick="resumePlayback()">▶ 続きから</button>
     </div>
     <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
@@ -252,7 +253,7 @@
 </div>
 
 <footer>
-  ver3.6
+  ver3.
 </footer>
 
 <script>
@@ -529,15 +530,31 @@ function updateNowPlaying(trackName) {
 }
 
 let isRandomMode = false;
+// === ランダム再生 ===
 function playRandom() {
   const all = getActiveList();
   if (all.length === 0) return;
   isRandomMode = true;
-  const randomIndex = Math.floor(Math.random() * all.length);
+
+  // ランダムで現在の曲を決定
+  let randomIndex = Math.floor(Math.random() * all.length);
   const currentKey = all[randomIndex];
+
+  // 次の曲を先に決めておく
+  if (all.length > 1) {
+    let nextIdx;
+    do {
+      nextIdx = Math.floor(Math.random() * all.length);
+    } while (nextIdx === randomIndex); // 同じ曲を避ける
+    nextTrackKey = all[nextIdx];
+  } else {
+    nextTrackKey = currentKey;
+  }
+
   playTrack(baseURL + currentKey, currentKey);
 }
 
+// === 次の曲 ===
 function nextTrack() {
   if (currentList.length === 0) return;
   if (isRepeat) {
@@ -545,13 +562,18 @@ function nextTrack() {
     return;
   }
   if (isRandomMode) {
-    playRandom();
+    // ランダム時は nextTrackKey に進む
+    if (nextTrackKey) {
+      playTrack(baseURL + nextTrackKey, nextTrackKey);
+    } else {
+      playRandom();
+    }
   } else {
     if (currentIndex >= 0 && currentIndex < currentList.length - 1) {
       const nextKey = currentList[currentIndex + 1];
       playTrack(baseURL + nextKey, nextKey);
     } else {
-            const firstKey = currentList[0];
+      const firstKey = currentList[0];
       playTrack(baseURL + firstKey, firstKey);
     }
   }
@@ -565,7 +587,14 @@ function prevTrack() {
     return;
   }
   if (isRandomMode) {
-    playRandom();
+    // ランダム時は履歴から戻す
+    if (playHistory.length > 1) {
+      playHistory.pop(); // 現在を削除
+      const prevKey = playHistory.pop(); // その前を取得
+      if (prevKey) playTrack(baseURL + prevKey, prevKey);
+    } else {
+      alert("前の曲はありません");
+    }
   } else {
     if (currentIndex > 0) {
       const prevKey = currentList[currentIndex - 1];
@@ -598,6 +627,17 @@ function stopPlayback() {
   const v = document.getElementById("video-frame");
   if (p) p.pause();
   if (v) v.pause();
+}
+// === 続きから再生 ===
+function resumePlayback() {
+  const p = document.getElementById("player");
+  const v = document.getElementById("video-frame");
+  if (p && p.src) {
+    p.play();
+  }
+  if (v && v.src) {
+    v.play();
+  }
 }
 
 // === 歌詞 ===
@@ -685,11 +725,70 @@ function renderFavorites() {
 // === 検索 ===
 function filterTracks() {
   const query = document.getElementById("search").value.toLowerCase();
-  const links = document.querySelectorAll("#track-list li a");
-  links.forEach(link => {
-    const li = link.parentElement;
-    const text = link.textContent.toLowerCase();
-    li.style.display = text.includes(query) ? "" : "none";
+  const listContainer = document.getElementById("track-list");
+
+  if (!query) {
+    // 検索が空 → 通常のツリーを表示
+    loadTracks();
+    return;
+  }
+
+  listContainer.innerHTML = "";
+
+  // 全曲リストを対象にする（favoritesモードならfavorites）
+  const targetTracks = showFavoritesOnly
+    ? favorites
+    : (allTracksFromJson.length ? allTracksFromJson : tracks);
+
+  const results = targetTracks.filter(fullKey =>
+    fullKey.toLowerCase().includes(query)
+  );
+
+  if (results.length === 0) {
+    listContainer.textContent = "該当する曲が見つかりません。";
+    return;
+  }
+
+  results.forEach(fullKey => {
+    const fileName = fullKey.split("/").pop();
+    const li = document.createElement("li");
+
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = fileName;
+    link.addEventListener("click", e => {
+      e.preventDefault();
+      playTrack(baseURL + fullKey, fullKey);
+    });
+
+    const favBtn = document.createElement("button");
+    favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
+    favBtn.style.marginLeft = "8px";
+    favBtn.style.border = "none";
+    favBtn.style.background = "transparent";
+    favBtn.style.cursor = "pointer";
+    favBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      toggleFavorite(fullKey);
+      favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
+    });
+
+    li.appendChild(link);
+    li.appendChild(favBtn);
+
+    const hasLyrics = lyricsData.some(entry => entry.file === fileName);
+    if (hasLyrics) {
+      const lyricsBtn = document.createElement("button");
+      lyricsBtn.textContent = "歌詞";
+      lyricsBtn.className = "lyrics-btn";
+      lyricsBtn.addEventListener("click", e => {
+        e.stopPropagation();
+        showLyrics(fileName);
+      });
+      li.appendChild(lyricsBtn);
+    }
+
+    listContainer.appendChild(li);
   });
 }
 
@@ -723,6 +822,17 @@ document.getElementById("pip-btn").addEventListener("click", async () => {
     console.error("PiP失敗:", err);
   }
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  // パスワード欄でEnterを押したら送信
+  const passInput = document.getElementById("password");
+  passInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      checkPassword();
+    }
+  });
+});
+  
 </script>
 </body>
 </html>
