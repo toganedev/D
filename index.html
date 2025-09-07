@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver3.3
+  ver3.4
 </footer>
 
 <script>
@@ -281,14 +281,16 @@ async function checkPassword() {
   if (lines.includes(input)) {
     document.getElementById("auth").style.display = "none";
     document.getElementById("main-content").style.display = "block";
+
+    // 🔽 歌詞データを先にロード
+    await loadLyrics();
+
+    // 🔽 それから曲一覧をロード
     loadTracks();
-    loadLyrics();
+
     updateJapanTime();
   } else alert("パスワードが違います");
 }
-document.getElementById("password").addEventListener("keydown", e => {
-  if (e.key === "Enter") checkPassword();
-});
 
 // === 時刻表示（1秒ごと更新） ===
 function updateJapanTime() {
@@ -439,90 +441,6 @@ function renderFromJson(trackArray, parentElement) {
   });
 }
 
-// 全曲収集
-async function collectAllTracks(path) {
-  const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
-  const res = await fetch(url);
-  const items = await res.json();
-  for (let item of items) {
-    if (item.type === "dir") {
-      await collectAllTracks(path + item.name + "/");
-    } else if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
-      const fullKey = path + item.name;
-      if (!tracks.includes(fullKey)) tracks.push(fullKey);
-    }
-  }
-}
-
-// === 歌詞 ===
-async function loadLyrics() {
-  try {
-    const res = await fetch(baseURL + "kashi.json");
-    lyricsData = await res.json();
-  } catch (e) {
-    console.error("歌詞データ読み込み失敗:", e);
-  }
-}
-function showLyrics(fileName) {
-  const entry = lyricsData.find(e => e.file === fileName);
-  if (entry) {
-    document.getElementById("lyrics-content").textContent = entry.lyrics;
-    document.getElementById("lyrics-modal").style.display = "flex";
-  }
-}
-document.getElementById("lyrics-modal").addEventListener("click", () => {
-  document.getElementById("lyrics-modal").style.display = "none";
-});
-
-// === お気に入り ===
-function toggleFavorite(track) {
-  if (favorites.includes(track)) {
-    favorites = favorites.filter(f => f !== track);
-  } else {
-    favorites.push(track);
-  }
-  localStorage.setItem("favorites", JSON.stringify(favorites));
-
-  if (showFavoritesOnly) renderFavorites();
-}
-
-function toggleFavorites() {
-  showFavoritesOnly = !showFavoritesOnly;
-  document.getElementById("favorites-btn").textContent = showFavoritesOnly ? "📂 全曲表示" : "⭐ お気に入りだけ";
-  if (showFavoritesOnly) renderFavorites();
-  else loadTracks();
-}
-
-function renderFavorites() {
-  const listContainer = document.getElementById("track-list");
-  listContainer.innerHTML = "";
-  favorites.forEach(file => {
-    const fileName = file.split("/").pop();
-    const li = document.createElement("li");
-    const link = document.createElement("a");
-    link.href = "#";
-    link.textContent = fileName;
-    link.addEventListener("click", e => {
-      e.preventDefault();
-      playTrack(baseURL + file, file);
-    });
-    const favBtn = document.createElement("button");
-    favBtn.textContent = "⭐";
-    favBtn.style.marginLeft = "8px";
-    favBtn.style.border = "none";
-    favBtn.style.background = "transparent";
-    favBtn.style.cursor = "pointer";
-    favBtn.addEventListener("click", e => {
-      e.stopPropagation();
-      toggleFavorite(file);
-      favBtn.textContent = favorites.includes(file) ? "⭐" : "☆";
-    });
-    li.appendChild(link);
-    li.appendChild(favBtn);
-    listContainer.appendChild(li);
-  });
-}
-
 // === 現在開いているフォルダの曲リストを取得 ===
 function getActiveList() {
   const openFolder = document.querySelector(".nested.open");
@@ -561,7 +479,7 @@ async function playTrack(url, fileKey) {
   };
   videoPlayer.style.display = "block";
 
-  // 次の曲を決定（ランダムか順番かで処理が違う）
+  // === 次の曲を決定 ===
   if (!isRepeat) {
     if (isRandomMode) {
       const list = getActiveList();
@@ -589,6 +507,8 @@ async function playTrack(url, fileKey) {
   audioPlayer.onended = () => {
     if (isRepeat) {
       playTrack(url, fileKey);
+    } else if (isRandomMode) {
+      playRandom(); // 次もランダム
     } else if (nextTrackKey) {
       playTrack(baseURL + nextTrackKey, nextTrackKey);
     } else {
@@ -642,7 +562,13 @@ function prevTrack() {
     return;
   }
   if (isRandomMode) {
-    playRandom();
+    if (playHistory.length > 1) {
+      playHistory.pop();
+      const prevKey = playHistory.pop();
+      if (prevKey) playTrack(baseURL + prevKey, prevKey);
+    } else {
+      playRandom();
+    }
   } else {
     if (currentIndex > 0) {
       const prevKey = currentList[currentIndex - 1];
@@ -673,9 +599,19 @@ function startPlayback() {
 function stopPlayback() {
   const p = document.getElementById("player");
   const v = document.getElementById("video-frame");
-  if (p) p.pause();
-  if (v) v.pause();
+  const vp = document.getElementById("video-player");
+  if (p) {
+    p.pause();
+    p.currentTime = 0;
+  }
+  if (v) {
+    v.pause();
+    v.currentTime = 0;
+  }
+  if (vp) vp.style.display = "none";
 }
+
+
 
 // === 検索 ===
 function filterTracks() {
