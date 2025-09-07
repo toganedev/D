@@ -252,7 +252,7 @@
 </div>
 
 <footer>
-  ver3.5 完全版
+  ver3.6
 </footer>
 
 <script>
@@ -269,6 +269,7 @@ let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 let showFavoritesOnly = false;
 let lyricsData = [];
 let playHistory = [];  // 再生履歴を保存する配列
+let allTracksFromJson = []; 
 
 // === パスワード認証 ===
 async function checkPassword() {
@@ -287,7 +288,13 @@ async function checkPassword() {
 
     // 曲一覧をロード
     loadTracks();
-
+// tracks.jsonを全体用にロードして保持
+  try {
+    const res = await fetch(baseURL + "tracks.json");
+    allTracksFromJson = await res.json();
+  } catch (e) {
+    console.error("tracks.jsonの読み込み失敗:", e);
+  }
     updateJapanTime();
   } else alert("パスワードが違います");
 }
@@ -450,8 +457,10 @@ function getActiveList() {
     });
     return localTracks;
   }
-  return showFavoritesOnly ? favorites : tracks;
+  // フォルダ未選択なら tracks.json の全曲を使う
+  return showFavoritesOnly ? favorites : (allTracksFromJson.length ? allTracksFromJson : tracks);
 }
+
 
 async function playTrack(url, fileKey) {
   if (!isRepeat && (playHistory.length === 0 || playHistory[playHistory.length - 1] !== fileKey)) {
