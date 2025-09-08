@@ -253,7 +253,7 @@
 </div>
 
 <footer>
-  ver3.9
+  ver4.0
 </footer>
 
 <script>
@@ -792,54 +792,14 @@ function filterTracks() {
   });
 }
 
+// === MediaSession ===
 async function updateMediaSession(fileKey, url) {
-  if (!("mediaSession" in navigator)) return;
-
-  const video = document.getElementById("video-frame");
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-
-  // 動画のメタデータ読み込みを待つ
-  await new Promise(resolve => {
-    if (video.readyState >= 1) resolve();
-    else video.onloadedmetadata = resolve;
-  });
-
-  // 7秒に移動
-  await new Promise(resolve => {
-    video.currentTime = Math.min(7, video.duration - 0.1); // 最後近い曲なら duration-0.1
-    video.onseeked = resolve;
-  });
-
-  // キャンバスサイズを設定
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-
-  // 7秒目のフレームを描画
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  // DataURL に変換
-  const artworkData = canvas.toDataURL("image/png");
-
-  // MediaSession の更新
-  navigator.mediaSession.metadata = new MediaMetadata({
-    title: fileKey.split("/").pop(),
-    artist: "togane_dev",
-    album: "GitHub Music",
-    artwork: [{ src: artworkData, sizes: "512x512", type: "image/png" }]
-  });
-
-  navigator.mediaSession.setActionHandler("play", () => startPlayback());
-  navigator.mediaSession.setActionHandler("pause", () => stopPlayback());
-  navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
-  navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
-}async function updateMediaSession(fileKey, url) {
   if (!("mediaSession" in navigator)) return;
 
   // サムネイル抽出用の隠し video
   const hiddenVideo = document.createElement("video");
   hiddenVideo.src = url;
-  hiddenVideo.muted = true; // 自動再生用
+  hiddenVideo.muted = true;
   hiddenVideo.style.display = "none";
   document.body.appendChild(hiddenVideo);
 
