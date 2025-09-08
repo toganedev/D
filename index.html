@@ -78,26 +78,6 @@
       width: 100%;
       box-sizing: border-box;
     }
-    #auth {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
-    #auth input, #auth button {
-      padding: 8px;
-      margin-top: 8px;
-      font-size: 14px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-    }
-    #auth button {
-      background-color: #8bbccc;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-    }
     .now-playing {
       margin-top: 1rem;
       font-weight: bold;
@@ -200,13 +180,7 @@
 </head>
 <body>
 
-<div id="auth">
-  <h2>パスワードを入力してください</h2>
-  <input type="password" id="password" placeholder="Password">
-  <button onclick="checkPassword()">送信</button>
-</div>
-
-<div id="main-content" style="display:none;">
+<div id="main-content">
   <header>
     <h1>曲再生サイト</h1>
     <div id="japan-time" style="font-size:14px; margin-left:20px;"></div>
@@ -253,7 +227,7 @@
 </div>
 
 <footer>
-  ver4.2
+  ver4.3
 </footer>
 
 <script>
@@ -271,34 +245,6 @@ let showFavoritesOnly = false;
 let lyricsData = [];
 let playHistory = [];  // 再生履歴を保存する配列
 let allTracksFromJson = []; 
-
-// === パスワード認証 ===
-async function checkPassword() {
-  const input = document.getElementById("password").value.trim();
-  if (!input) return alert("パスワードを入力してください");
-
-  const res = await fetch(baseURL + "password.txt");
-  const text = await res.text();
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== "");
-  if (lines.includes(input)) {
-    document.getElementById("auth").style.display = "none";
-    document.getElementById("main-content").style.display = "block";
-
-    // 歌詞データをロード
-    await loadLyrics();
-
-    // 曲一覧をロード
-    loadTracks();
-// tracks.jsonを全体用にロードして保持
-  try {
-    const res = await fetch(baseURL + "tracks.json");
-    allTracksFromJson = await res.json();
-  } catch (e) {
-    console.error("tracks.jsonの読み込み失敗:", e);
-  }
-    updateJapanTime();
-  } else alert("パスワードが違います");
-}
 
 // === 時刻表示 ===
 function updateJapanTime() {
@@ -329,7 +275,6 @@ async function loadTracks() {
     }
   }
 }
-
 async function buildFolderTree(path, parentElement) {
   const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
   const res = await fetch(url);
@@ -823,14 +768,16 @@ document.getElementById("pip-btn").addEventListener("click", async () => {
   }
 });
 
-document.addEventListener("DOMContentLoaded", () => {
-  // パスワード欄でEnterを押したら送信
-  const passInput = document.getElementById("password");
-  passInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      checkPassword();
-    }
-  });
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadLyrics();
+  await loadTracks();
+  try {
+    const res = await fetch(baseURL + "tracks.json");
+    allTracksFromJson = await res.json();
+  } catch (e) {
+    console.error("tracks.jsonの読み込み失敗:", e);
+  }
+  updateJapanTime();
 });
   
 </script>
