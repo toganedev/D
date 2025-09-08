@@ -253,7 +253,7 @@
 </div>
 
 <footer>
-  ver3.8
+  ver3.9
 </footer>
 
 <script>
@@ -833,7 +833,55 @@ async function updateMediaSession(fileKey, url) {
   navigator.mediaSession.setActionHandler("pause", () => stopPlayback());
   navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
   navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
+}async function updateMediaSession(fileKey, url) {
+  if (!("mediaSession" in navigator)) return;
+
+  // サムネイル抽出用の隠し video
+  const hiddenVideo = document.createElement("video");
+  hiddenVideo.src = url;
+  hiddenVideo.muted = true; // 自動再生用
+  hiddenVideo.style.display = "none";
+  document.body.appendChild(hiddenVideo);
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  // メタデータ読み込み待ち
+  await new Promise(resolve => {
+    hiddenVideo.onloadedmetadata = resolve;
+  });
+
+  // 7秒へシーク
+  await new Promise(resolve => {
+    hiddenVideo.currentTime = Math.min(7, hiddenVideo.duration - 0.1);
+    hiddenVideo.onseeked = resolve;
+  });
+
+  // キャンバスに描画
+  canvas.width = hiddenVideo.videoWidth;
+  canvas.height = hiddenVideo.videoHeight;
+  ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+
+  // DataURL化
+  const artworkData = canvas.toDataURL("image/png");
+
+  // MediaSession 更新
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: fileKey.split("/").pop(),
+    artist: "togane_dev",
+    album: "GitHub Music",
+    artwork: [{ src: artworkData, sizes: "512x512", type: "image/png" }]
+  });
+
+  navigator.mediaSession.setActionHandler("play", () => startPlayback());
+  navigator.mediaSession.setActionHandler("pause", () => stopPlayback());
+  navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
+  navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
+
+  // cleanup
+  hiddenVideo.remove();
 }
+
 
 // === PIP ===
 document.getElementById("pip-btn").addEventListener("click", async () => {
