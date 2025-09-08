@@ -253,7 +253,7 @@
 </div>
 
 <footer>
-  ver4.1
+  ver4.2
 </footer>
 
 <script>
@@ -792,54 +792,21 @@ function filterTracks() {
   });
 }
 
-async function updateMediaSession(fileKey, url) {
-  if (!("mediaSession" in navigator)) return;
+// === メディアセッション ===
+function updateMediaSession(fileKey, url) {
+  if ("mediaSession" in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: fileKey.split("/").pop(),
+      artist: "togane_dev",
+      album: "GitHub Music",
+      artwork: [{ src: "https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png", sizes: "512x512", type: "image/png" }]
+    });
 
-  // サムネイル抽出用の隠し video
-  const hiddenVideo = document.createElement("video");
-  hiddenVideo.src = url;
-  hiddenVideo.muted = true;
-  hiddenVideo.preload = "metadata";
-  hiddenVideo.style.display = "none";
-  document.body.appendChild(hiddenVideo);
-
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-
-  // メタデータが読めるまで待つ
-  await new Promise(resolve => {
-    hiddenVideo.addEventListener("loadedmetadata", resolve, { once: true });
-  });
-
-  // 7秒にシーク
-  hiddenVideo.currentTime = Math.min(7, hiddenVideo.duration - 0.1);
-
-  await new Promise(resolve => {
-    hiddenVideo.addEventListener("seeked", resolve, { once: true });
-  });
-
-  // キャンバスに描画
-  canvas.width = hiddenVideo.videoWidth;
-  canvas.height = hiddenVideo.videoHeight;
-  ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
-
-  const artworkData = canvas.toDataURL("image/png");
-
-  // MediaSession 更新
-  navigator.mediaSession.metadata = new MediaMetadata({
-    title: fileKey.split("/").pop(),
-    artist: "togane_dev",
-    album: "GitHub Music",
-    artwork: [{ src: artworkData, sizes: "512x512", type: "image/png" }]
-  });
-
-  navigator.mediaSession.setActionHandler("play", () => startPlayback());
-  navigator.mediaSession.setActionHandler("pause", () => stopPlayback());
-  navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
-  navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
-
-  // cleanup
-  hiddenVideo.remove();
+    navigator.mediaSession.setActionHandler("play", () => startPlayback());
+    navigator.mediaSession.setActionHandler("pause", () => stopPlayback());
+    navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
+    navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
+  }
 }
 
 // === PIP ===
@@ -869,4 +836,3 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
-
