@@ -253,7 +253,7 @@
 </div>
 
 <footer>
-  ver3.7
+  ver3.8
 </footer>
 
 <script>
@@ -792,21 +792,47 @@ function filterTracks() {
   });
 }
 
-// === メディアセッション ===
-function updateMediaSession(fileKey, url) {
-  if ("mediaSession" in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: fileKey.split("/").pop(),
-      artist: "togane_dev",
-      album: "GitHub Music",
-      artwork: [{ src: "https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png", sizes: "512x512", type: "image/png" }]
-    });
+async function updateMediaSession(fileKey, url) {
+  if (!("mediaSession" in navigator)) return;
 
-    navigator.mediaSession.setActionHandler("play", () => startPlayback());
-    navigator.mediaSession.setActionHandler("pause", () => stopPlayback());
-    navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
-    navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
-  }
+  const video = document.getElementById("video-frame");
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  // 動画のメタデータ読み込みを待つ
+  await new Promise(resolve => {
+    if (video.readyState >= 1) resolve();
+    else video.onloadedmetadata = resolve;
+  });
+
+  // 7秒に移動
+  await new Promise(resolve => {
+    video.currentTime = Math.min(7, video.duration - 0.1); // 最後近い曲なら duration-0.1
+    video.onseeked = resolve;
+  });
+
+  // キャンバスサイズを設定
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  // 7秒目のフレームを描画
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  // DataURL に変換
+  const artworkData = canvas.toDataURL("image/png");
+
+  // MediaSession の更新
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: fileKey.split("/").pop(),
+    artist: "togane_dev",
+    album: "GitHub Music",
+    artwork: [{ src: artworkData, sizes: "512x512", type: "image/png" }]
+  });
+
+  navigator.mediaSession.setActionHandler("play", () => startPlayback());
+  navigator.mediaSession.setActionHandler("pause", () => stopPlayback());
+  navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
+  navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
 }
 
 // === PIP ===
