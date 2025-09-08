@@ -253,7 +253,7 @@
 </div>
 
 <footer>
-  ver4.0
+  ver4.1
 </footer>
 
 <script>
@@ -792,7 +792,6 @@ function filterTracks() {
   });
 }
 
-// === MediaSession ===
 async function updateMediaSession(fileKey, url) {
   if (!("mediaSession" in navigator)) return;
 
@@ -800,21 +799,23 @@ async function updateMediaSession(fileKey, url) {
   const hiddenVideo = document.createElement("video");
   hiddenVideo.src = url;
   hiddenVideo.muted = true;
+  hiddenVideo.preload = "metadata";
   hiddenVideo.style.display = "none";
   document.body.appendChild(hiddenVideo);
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
-  // メタデータ読み込み待ち
+  // メタデータが読めるまで待つ
   await new Promise(resolve => {
-    hiddenVideo.onloadedmetadata = resolve;
+    hiddenVideo.addEventListener("loadedmetadata", resolve, { once: true });
   });
 
-  // 7秒へシーク
+  // 7秒にシーク
+  hiddenVideo.currentTime = Math.min(7, hiddenVideo.duration - 0.1);
+
   await new Promise(resolve => {
-    hiddenVideo.currentTime = Math.min(7, hiddenVideo.duration - 0.1);
-    hiddenVideo.onseeked = resolve;
+    hiddenVideo.addEventListener("seeked", resolve, { once: true });
   });
 
   // キャンバスに描画
@@ -822,7 +823,6 @@ async function updateMediaSession(fileKey, url) {
   canvas.height = hiddenVideo.videoHeight;
   ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
 
-  // DataURL化
   const artworkData = canvas.toDataURL("image/png");
 
   // MediaSession 更新
@@ -841,7 +841,6 @@ async function updateMediaSession(fileKey, url) {
   // cleanup
   hiddenVideo.remove();
 }
-
 
 // === PIP ===
 document.getElementById("pip-btn").addEventListener("click", async () => {
