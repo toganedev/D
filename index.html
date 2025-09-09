@@ -163,25 +163,35 @@
     .nested { display: none; margin-left: 1rem; }
     .nested.open { display: block; }
 
-/* === 曲リストをカード風に === */
-.track-card {
-  background: #181818;
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-bottom: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  transition: background 0.2s;
-}
-.track-card:hover {
-  background: #282828;
-}
-.track-card a {
-  color: #fff;
-  font-weight: normal;
-  flex: 1;
-}
+    /* === 曲リストをカード風に === */
+    .track-card {
+      background: #181818;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.2s;
+    }
+    .track-card:hover {
+      background: #282828;
+    }
+    .track-card a {
+      color: #fff;
+      font-weight: normal;
+      flex: 1;
+    }
+
+    /* === 再生中ハイライト === */
+    .track-card.playing {
+      background: #1db954;
+      color: #000;
+    }
+    .track-card.playing a {
+      color: #000;
+      font-weight: bold;
+    }
 
   </style>
 </head>
@@ -244,12 +254,9 @@
   </div>
 </div>
 
-
-
 <footer>
-  ver4.4
+  ver4.6
 </footer>
-
 <script>
 let tracks = []; 
 let currentList = [];
@@ -295,6 +302,7 @@ async function loadTracks() {
     }
   }
 }
+
 async function buildFolderTree(path, parentElement) {
   const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
   const res = await fetch(url);
@@ -329,6 +337,8 @@ async function buildFolderTree(path, parentElement) {
       if (!tracks.includes(fullKey)) tracks.push(fullKey);
 
       const li = document.createElement("li");
+      li.classList.add("track-card");
+
       const link = document.createElement("a");
       link.href = "#";
       link.textContent = item.name;
@@ -373,6 +383,7 @@ function renderFromJson(trackArray, parentElement) {
   trackArray.forEach(fullKey => {
     const fileName = fullKey.split("/").pop();
     const li = document.createElement("li");
+    li.classList.add("track-card");
 
     const link = document.createElement("a");
     link.href = "#";
@@ -423,10 +434,8 @@ function getActiveList() {
     });
     return localTracks;
   }
-  // フォルダ未選択なら tracks.json の全曲を使う
   return showFavoritesOnly ? favorites : (allTracksFromJson.length ? allTracksFromJson : tracks);
 }
-
 
 async function playTrack(url, fileKey) {
   if (!isRepeat && (playHistory.length === 0 || playHistory[playHistory.length - 1] !== fileKey)) {
@@ -475,6 +484,14 @@ async function playTrack(url, fileKey) {
   updateNowPlaying(fileKey);
   updateMediaSession(fileKey, url);
 
+  // 🎵 再生中の曲をハイライト
+  document.querySelectorAll(".track-card").forEach(li => li.classList.remove("playing"));
+  const currentLi = Array.from(document.querySelectorAll(".track-card a"))
+    .find(link => link.textContent === fileKey.split("/").pop());
+  if (currentLi) {
+    currentLi.parentElement.classList.add("playing");
+  }
+
   audioPlayer.onended = () => {
     if (isRepeat) {
       playTrack(url, fileKey);
@@ -501,16 +518,14 @@ function playRandom() {
   if (all.length === 0) return;
   isRandomMode = true;
 
-  // ランダムで現在の曲を決定
   let randomIndex = Math.floor(Math.random() * all.length);
   const currentKey = all[randomIndex];
 
-  // 次の曲を先に決めておく
   if (all.length > 1) {
     let nextIdx;
     do {
       nextIdx = Math.floor(Math.random() * all.length);
-    } while (nextIdx === randomIndex); // 同じ曲を避ける
+    } while (nextIdx === randomIndex);
     nextTrackKey = all[nextIdx];
   } else {
     nextTrackKey = currentKey;
@@ -527,7 +542,6 @@ function nextTrack() {
     return;
   }
   if (isRandomMode) {
-    // ランダム時は nextTrackKey に進む
     if (nextTrackKey) {
       playTrack(baseURL + nextTrackKey, nextTrackKey);
     } else {
@@ -552,10 +566,9 @@ function prevTrack() {
     return;
   }
   if (isRandomMode) {
-    // ランダム時は履歴から戻す
     if (playHistory.length > 1) {
-      playHistory.pop(); // 現在を削除
-      const prevKey = playHistory.pop(); // その前を取得
+      playHistory.pop();
+      const prevKey = playHistory.pop();
       if (prevKey) playTrack(baseURL + prevKey, prevKey);
     } else {
       alert("前の曲はありません");
@@ -577,7 +590,7 @@ function toggleRepeat() {
   document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
 }
 
-// === スタート再生（順番再生）===
+// === スタート再生 ===
 function startPlayback() {
   currentList = getActiveList();
   if (currentList.length === 0) return;
@@ -633,7 +646,6 @@ function toggleFavorite(track) {
     favorites.push(track);
   }
   localStorage.setItem("favorites", JSON.stringify(favorites));
-
   if (showFavoritesOnly) renderFavorites();
 }
 
@@ -650,6 +662,8 @@ function renderFavorites() {
   favorites.forEach(file => {
     const fileName = file.split("/").pop();
     const li = document.createElement("li");
+    li.classList.add("track-card");
+
     const link = document.createElement("a");
     link.href = "#";
     link.textContent = fileName;
@@ -693,14 +707,12 @@ function filterTracks() {
   const listContainer = document.getElementById("track-list");
 
   if (!query) {
-    // 検索が空 → 通常のツリーを表示
     loadTracks();
     return;
   }
 
   listContainer.innerHTML = "";
 
-  // 全曲リストを対象にする（favoritesモードならfavorites）
   const targetTracks = showFavoritesOnly
     ? favorites
     : (allTracksFromJson.length ? allTracksFromJson : tracks);
@@ -714,9 +726,13 @@ function filterTracks() {
     return;
   }
 
+  // 🎵 検索結果を currentList にセット
+  currentList = results;
+
   results.forEach(fullKey => {
     const fileName = fullKey.split("/").pop();
     const li = document.createElement("li");
+    li.classList.add("track-card");
 
     const link = document.createElement("a");
     link.href = "#";
@@ -799,7 +815,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   updateJapanTime();
 });
-  
 </script>
 </body>
 </html>
