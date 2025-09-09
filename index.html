@@ -11,51 +11,48 @@
 
   <style>
     body {
+      background-color: #f7f3e9;
+      font-family: sans-serif;
+      color: #333;
       margin: 0;
-      font-family: Arial, sans-serif;
-      background-color: #121212;
-      color: #fff;
-      display: flex;
-      height: 100vh;
+      padding: 0;
     }
-    /* === サイドバー === */
-    .sidebar {
-      width: 220px;
-      background-color: #000;
-      display: flex;
-      flex-direction: column;
+    header {
+      background-color: #8bbccc;
       padding: 1rem;
-    }
-    .sidebar h1 {
-      color: #1db954;
-      font-size: 20px;
-      margin: 0 0 1rem;
-    }
-    .sidebar a {
-      color: #bbb;
-      text-decoration: none;
-      margin: 10px 0;
-      display: block;
-    }
-    .sidebar a:hover {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       color: #fff;
     }
-    /* === メイン === */
-    .main {
-      flex: 1;
-      padding: 1.5rem;
-      overflow-y: auto;
-      padding-bottom: 100px; /* プレイヤーにかぶらない余白 */
+    header h1 { margin: 0; }
+    .creator-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    h2 { margin-top: 1rem; }
+    .creator-card img {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+    }
+    main {
+      max-width: 900px;
+      margin: auto;
+      padding: 1.5rem;
+    }
     ul { list-style: none; padding: 0; margin: 0; }
     li { margin: 0.4rem 0; }
     a {
-      color: #1db954;
+      color: #5a7d9a;
       text-decoration: none;
       font-weight: bold;
     }
     a:hover { text-decoration: underline; }
+    audio {
+      width: 100%;
+      margin-top: 1.5rem;
+    }
     .controls {
       margin-bottom: 1rem;
       display: flex;
@@ -63,7 +60,7 @@
       flex-wrap: wrap;
     }
     .controls button {
-      background-color: #1db954;
+      background-color: #8bbccc;
       border: none;
       color: white;
       padding: 0.4rem 0.8rem;
@@ -71,13 +68,13 @@
       border-radius: 4px;
       font-size: 14px;
     }
-    .controls button:hover { background-color: #17a84b; }
+    .controls button:hover { background-color: #7aa9b6; }
     .search-bar { margin-bottom: 1rem; }
     .search-bar input {
       padding: 0.4rem;
       font-size: 14px;
       border-radius: 4px;
-      border: none;
+      border: 1px solid #ccc;
       width: 100%;
       box-sizing: border-box;
     }
@@ -86,34 +83,40 @@
       font-weight: bold;
       white-space: pre-line;
     }
-    /* === プレイヤーバー === */
-    .player-bar {
+    #video-player {
       position: fixed;
-      bottom: 0;
-      left: 220px;
-      right: 0;
-      height: 90px;
-      background-color: #181818;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 1rem;
-      border-top: 1px solid #333;
+      bottom: 10px;
+      right: 10px;
+      width: 300px;
+      height: 170px;
+      background: #000;
+      display: none;
       z-index: 1000;
     }
-    .player-bar audio {
-      width: 300px;
-    }
-    .player-controls button {
-      background: none;
+    #video-player video {
+      width: 100%;
+      height: 100%;
       border: none;
-      color: #fff;
-      font-size: 18px;
-      margin: 0 10px;
-      cursor: pointer;
+      background: #000;
     }
-    .player-controls button:hover { color: #1db954; }
-    /* === 歌詞モーダル === */
+    #pip-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: rgba(255,255,255,0.7);
+      border: none;
+      padding: 2px 6px;
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 4px;
+    }
+    footer {
+      text-align: center;
+      padding: 1rem;
+      font-size: 12px;
+      color: #666;
+    }
+    /* 歌詞モーダル */
     #lyrics-modal {
       display: none;
       position: fixed;
@@ -132,21 +135,25 @@
       border-radius: 8px;
       overflow-y: auto;
       white-space: pre-line;
-      color: #000;
     }
-    #lyrics-box h3 { margin-top: 0; text-align: center; }
+    #lyrics-box h3 {
+      margin-top: 0;
+      text-align: center;
+    }
     .lyrics-btn {
       margin-left: 8px;
       border: none;
-      background: #1db954;
+      background: #8bbccc;
       color: #fff;
       padding: 2px 6px;
       border-radius: 4px;
       cursor: pointer;
       font-size: 12px;
     }
-    .lyrics-btn:hover { background: #17a84b; }
-    /* === フォルダツリー === */
+    .lyrics-btn:hover {
+      background: #7aa9b6;
+    }
+    /* ツリー用 */
     .folder {
       cursor: pointer;
       font-weight: bold;
@@ -159,91 +166,56 @@
       display: inline-block;
       transition: transform 0.2s;
     }
-    .folder.open::before { content: "▼"; }
-    .nested { display: none; margin-left: 1rem; }
-    .nested.open { display: block; }
-
-    /* === 曲リストをカード風に === */
-    .track-card {
-      background: #181818;
-      padding: 8px 12px;
-      border-radius: 6px;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      transition: background 0.2s;
+    .folder.open::before {
+      content: "▼";
     }
-    .track-card:hover {
-      background: #282828;
+    .nested {
+      display: none;
+      margin-left: 1rem;
     }
-    .track-card a {
-      color: #fff;
-      font-weight: normal;
-      flex: 1;
+    .nested.open {
+      display: block;
     }
-
-    /* === 再生中ハイライト === */
-    .track-card.playing {
-      background: #1db954;
-      color: #000;
-    }
-    .track-card.playing a {
-      color: #000;
-      font-weight: bold;
-    }
-
   </style>
 </head>
 <body>
 
-<!-- サイドバー -->
-<div class="sidebar">
-  <h1>曲再生サイト</h1>
-  <a href="#">🏠 ホーム</a>
-  <a href="#">🔍 検索</a>
-  <a href="#">⭐ お気に入り</a>
-  <a href="#">📂 プレイリスト</a>
-  <div id="japan-time" style="font-size:12px; margin-top:auto;"></div>
-  <div class="creator-card" style="margin-top:10px; display:flex; align-items:center; gap:8px;">
-    <img src="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png" alt="icon" style="width:32px;height:32px;border-radius:50%;">
-    <div>
-      <div>togane_dev</div>
-      <div style="font-size:10px;">1401421639106957464</div>
+<div id="main-content">
+  <header>
+    <h1>曲再生サイト</h1>
+    <div id="japan-time" style="font-size:14px; margin-left:20px;"></div>
+    <div class="creator-card">
+      <img src="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png" alt="icon">
+      <div>
+        <div>togane_dev</div>
+        <div style="font-size:12px;">1401421639106957464</div>
+      </div>
     </div>
-  </div>
+  </header>
+  <main>
+    <div class="controls">
+      <button onclick="playRandom()">ランダム</button>
+      <button onclick="prevTrack()">戻る</button>
+      <button onclick="nextTrack()">スキップ</button>
+      <button onclick="toggleRepeat()" id="repeat-btn">リピートOFF</button>
+      <button onclick="toggleFavorites()" id="favorites-btn">⭐ お気に入りだけ</button>
+      <button onclick="startPlayback()">▶ スタート</button>
+      <button onclick="stopPlayback()">■ ストップ</button>
+      <button onclick="resumePlayback()">▶ 続きから</button>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
+    </div>
+    <div class="now-playing" id="now-playing">再生中: なし\n次の曲: なし</div>
+    <h2>曲一覧</h2>
+    <ul id="track-list">読み込み中...</ul>
+    <audio id="player" controls></audio>
+  </main>
 </div>
 
-<!-- メイン -->
-<div class="main">
-  <div class="controls">
-    <button onclick="playRandom()">ランダム</button>
-    <button onclick="prevTrack()">戻る</button>
-    <button onclick="nextTrack()">スキップ</button>
-    <button onclick="toggleRepeat()" id="repeat-btn">リピートOFF</button>
-    <button onclick="toggleFavorites()" id="favorites-btn">⭐ お気に入りだけ</button>
-    <button onclick="startPlayback()">▶ スタート</button>
-    <button onclick="stopPlayback()">■ ストップ</button>
-    <button onclick="resumePlayback()">▶ 続きから</button>
-  </div>
-
-  <div class="search-bar">
-    <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
-  </div>
-
-  <div class="now-playing" id="now-playing">再生中: なし\n次の曲: なし</div>
-
-  <h2>曲一覧</h2>
-  <ul id="track-list">読み込み中...</ul>
-</div>
-
-<!-- 下部プレイヤー -->
-<div class="player-bar">
-  <div id="video-player" style="display:flex; align-items:center; gap:1rem;">
-    <video id="video-frame" muted playsinline webkit-playsinline style="width:150px;height:85px;background:#000;"></video>
-    <button id="pip-btn">📺</button>
-  </div>
-  <audio id="player" controls></audio>
+<div id="video-player">
+  <video id="video-frame" muted playsinline webkit-playsinline></video>
+  <button id="pip-btn">📺</button>
 </div>
 
 <!-- 歌詞モーダル -->
@@ -255,8 +227,9 @@
 </div>
 
 <footer>
-  ver4.6
+  ver4.7
 </footer>
+
 <script>
 let tracks = []; 
 let currentList = [];
@@ -302,7 +275,6 @@ async function loadTracks() {
     }
   }
 }
-
 async function buildFolderTree(path, parentElement) {
   const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
   const res = await fetch(url);
@@ -337,8 +309,6 @@ async function buildFolderTree(path, parentElement) {
       if (!tracks.includes(fullKey)) tracks.push(fullKey);
 
       const li = document.createElement("li");
-      li.classList.add("track-card");
-
       const link = document.createElement("a");
       link.href = "#";
       link.textContent = item.name;
@@ -383,7 +353,6 @@ function renderFromJson(trackArray, parentElement) {
   trackArray.forEach(fullKey => {
     const fileName = fullKey.split("/").pop();
     const li = document.createElement("li");
-    li.classList.add("track-card");
 
     const link = document.createElement("a");
     link.href = "#";
@@ -434,8 +403,10 @@ function getActiveList() {
     });
     return localTracks;
   }
+  // フォルダ未選択なら tracks.json の全曲を使う
   return showFavoritesOnly ? favorites : (allTracksFromJson.length ? allTracksFromJson : tracks);
 }
+
 
 async function playTrack(url, fileKey) {
   if (!isRepeat && (playHistory.length === 0 || playHistory[playHistory.length - 1] !== fileKey)) {
@@ -484,14 +455,6 @@ async function playTrack(url, fileKey) {
   updateNowPlaying(fileKey);
   updateMediaSession(fileKey, url);
 
-  // 🎵 再生中の曲をハイライト
-  document.querySelectorAll(".track-card").forEach(li => li.classList.remove("playing"));
-  const currentLi = Array.from(document.querySelectorAll(".track-card a"))
-    .find(link => link.textContent === fileKey.split("/").pop());
-  if (currentLi) {
-    currentLi.parentElement.classList.add("playing");
-  }
-
   audioPlayer.onended = () => {
     if (isRepeat) {
       playTrack(url, fileKey);
@@ -518,14 +481,16 @@ function playRandom() {
   if (all.length === 0) return;
   isRandomMode = true;
 
+  // ランダムで現在の曲を決定
   let randomIndex = Math.floor(Math.random() * all.length);
   const currentKey = all[randomIndex];
 
+  // 次の曲を先に決めておく
   if (all.length > 1) {
     let nextIdx;
     do {
       nextIdx = Math.floor(Math.random() * all.length);
-    } while (nextIdx === randomIndex);
+    } while (nextIdx === randomIndex); // 同じ曲を避ける
     nextTrackKey = all[nextIdx];
   } else {
     nextTrackKey = currentKey;
@@ -542,6 +507,7 @@ function nextTrack() {
     return;
   }
   if (isRandomMode) {
+    // ランダム時は nextTrackKey に進む
     if (nextTrackKey) {
       playTrack(baseURL + nextTrackKey, nextTrackKey);
     } else {
@@ -566,9 +532,10 @@ function prevTrack() {
     return;
   }
   if (isRandomMode) {
+    // ランダム時は履歴から戻す
     if (playHistory.length > 1) {
-      playHistory.pop();
-      const prevKey = playHistory.pop();
+      playHistory.pop(); // 現在を削除
+      const prevKey = playHistory.pop(); // その前を取得
       if (prevKey) playTrack(baseURL + prevKey, prevKey);
     } else {
       alert("前の曲はありません");
@@ -590,7 +557,7 @@ function toggleRepeat() {
   document.getElementById("repeat-btn").textContent = isRepeat ? "リピートON" : "リピートOFF";
 }
 
-// === スタート再生 ===
+// === スタート再生（順番再生）===
 function startPlayback() {
   currentList = getActiveList();
   if (currentList.length === 0) return;
@@ -646,6 +613,7 @@ function toggleFavorite(track) {
     favorites.push(track);
   }
   localStorage.setItem("favorites", JSON.stringify(favorites));
+
   if (showFavoritesOnly) renderFavorites();
 }
 
@@ -662,8 +630,6 @@ function renderFavorites() {
   favorites.forEach(file => {
     const fileName = file.split("/").pop();
     const li = document.createElement("li");
-    li.classList.add("track-card");
-
     const link = document.createElement("a");
     link.href = "#";
     link.textContent = fileName;
@@ -707,12 +673,14 @@ function filterTracks() {
   const listContainer = document.getElementById("track-list");
 
   if (!query) {
+    // 検索が空 → 通常のツリーを表示
     loadTracks();
     return;
   }
 
   listContainer.innerHTML = "";
 
+  // 全曲リストを対象にする（favoritesモードならfavorites）
   const targetTracks = showFavoritesOnly
     ? favorites
     : (allTracksFromJson.length ? allTracksFromJson : tracks);
@@ -726,13 +694,9 @@ function filterTracks() {
     return;
   }
 
-  // 🎵 検索結果を currentList にセット
-  currentList = results;
-
   results.forEach(fullKey => {
     const fileName = fullKey.split("/").pop();
     const li = document.createElement("li");
-    li.classList.add("track-card");
 
     const link = document.createElement("a");
     link.href = "#";
@@ -815,6 +779,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   updateJapanTime();
 });
+  
 </script>
 </body>
 </html>
