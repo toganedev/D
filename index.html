@@ -342,6 +342,60 @@ body.spotify-mode .sp-right input[type=range]::-webkit-slider-thumb {
   background: #1db954;
   cursor: pointer;
 }
+/* === PiP位置調整 (Spotifyバーと被らないように) === */
+#video-player {
+  bottom: 110px; /* 元の10pxから変更 */
+}
+
+/* === 曲名スクロール (Spotify風バー) === */
+body.spotify-mode .sp-title {
+  display: block;
+  max-width: 160px;  /* 曲名領域を固定 */
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative;
+}
+body.spotify-mode .sp-title::after {
+  content: attr(title);
+  position: absolute;
+  left: 100%;
+  padding-left: 40px; /* 間隔 */
+  animation: scroll-text 12s linear infinite;
+}
+@keyframes scroll-text {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+/* === スマホ対応 === */
+@media (max-width: 600px) {
+  body.spotify-mode #spotify-playerbar {
+    flex-direction: column;
+    height: auto;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  body.spotify-mode .sp-left img {
+    width: 48px;
+    height: 48px;
+  }
+
+  body.spotify-mode .sp-controls button {
+    font-size: 18px;
+    padding: 4px;
+  }
+
+  body.spotify-mode .sp-right input[type=range] {
+    width: 80px;
+  }
+
+  /* スタート/リピートボタン調整 */
+  .controls button {
+    font-size: 12px;
+    padding: 0.3rem 0.6rem;
+  }
+}
 
   </style>
 </head>
@@ -371,7 +425,6 @@ body.spotify-mode .sp-right input[type=range]::-webkit-slider-thumb {
       <button onclick="resumePlayback()">▶ 続きから</button>
       <button onclick="toggleDarkMode()" id="darkmode-btn">🌙 ダークモード</button>
       <button onclick="toggleSpotifyMode()" id="spotify-btn">🎵 Spotify風OFF</button>
-         <button class="play-btn" id="sp-playpause">▶</button>
     </div>
     <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
@@ -426,7 +479,7 @@ body.spotify-mode .sp-right input[type=range]::-webkit-slider-thumb {
 </div>
 
 <footer>
-  ver5.2
+  ver5.4
 </footer>
 
 
@@ -1049,82 +1102,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     : "🌙 ダークモード";
 }
 
-  // Spotify風モード切り替え
-  function toggleSpotifyMode() {
-    document.body.classList.toggle("spotify-mode");
-    const btn = document.getElementById("spotify-btn");
-    const bar = document.getElementById("spotify-playerbar");
-    const isOn = document.body.classList.contains("spotify-mode");
+// Spotify風モード切り替え
+function toggleSpotifyMode() {
+  document.body.classList.toggle("spotify-mode");
+  const btn = document.getElementById("spotify-btn");
+  const bar = document.getElementById("spotify-playerbar");
+  const isOn = document.body.classList.contains("spotify-mode");
 
-    btn.textContent = isOn ? "🎵 Spotify風ON" : "🎵 Spotify風OFF";
-    bar.style.display = isOn ? "flex" : "none";
-  }
+  btn.textContent = isOn ? "🎵 Spotify風ON" : "🎵 Spotify風OFF";
+  bar.style.display = isOn ? "flex" : "none";
+}
 
-  // 再生中の曲タイトルを更新
-  function updateNowPlaying(trackName) {
-    const currentName = trackName.split("/").pop();
-    const nextName = nextTrackKey ? nextTrackKey.split("/").pop() : "なし";
-    document.getElementById("now-playing").textContent =
-      `再生中: ${currentName}\n次の曲: ${nextName}`;
-document.getElementById("sp-artwork").src =
-  "https://raw.githubusercontent.com/toganedev/D/refs/heads/main/aa.jpg";
+// 再生中の曲タイトルを更新
+function updateNowPlaying(trackName) {
+  const currentName = trackName.split("/").pop();
+  const nextName = nextTrackKey ? nextTrackKey.split("/").pop() : "なし";
+  document.getElementById("now-playing").textContent =
+    `再生中: ${currentName}\n次の曲: ${nextName}`;
+  document.getElementById("sp-artwork").src =
+    "https://raw.githubusercontent.com/toganedev/D/refs/heads/main/aa.jpg";
 
-    // Spotifyバーにも反映
-    document.getElementById("sp-title").textContent = currentName;
-  }
+  // Spotifyバーにも反映
+  document.getElementById("sp-title").textContent = currentName;
+}
 
-  // === Spotify風バーのシーク・音量同期 ===
-  document.addEventListener("DOMContentLoaded", () => {
-    const player = document.getElementById("player");
-    const spSeek = document.getElementById("sp-seek");
-    const spCurrent = document.getElementById("sp-current");
-    const spDuration = document.getElementById("sp-duration");
-    const spVolume = document.getElementById("sp-volume");
-
-    // 再生中にシークバー更新
-    player.addEventListener("timeupdate", () => {
-      if (!isNaN(player.duration)) {
-        spSeek.max = player.duration;
-        spSeek.value = player.currentTime;
-      }
-      spCurrent.textContent = formatTime(player.currentTime);
-      spDuration.textContent = formatTime(player.duration);
-    });
-
-    // シークバーを操作したら反映
-    spSeek.addEventListener("input", () => {
-      player.currentTime = spSeek.value;
-    });
-
-    // 音量バーを操作したら反映
-    spVolume.addEventListener("input", () => {
-      player.volume = spVolume.value;
-    });
-
-    // ページ読み込み時に音量バー初期化
-    spVolume.value = player.volume;
-
-    function formatTime(sec) {
-      if (!sec || isNaN(sec)) return "0:00";
-      const m = Math.floor(sec / 60);
-      const s = Math.floor(sec % 60).toString().padStart(2, "0");
-      return `${m}:${s}`;
-    }
-  });
-// === Spotify風 再生/一時停止ボタンを同期 ===
+// === Spotify風バーのシーク・音量同期 ===
 document.addEventListener("DOMContentLoaded", () => {
   const player = document.getElementById("player");
+  const spSeek = document.getElementById("sp-seek");
+  const spCurrent = document.getElementById("sp-current");
+  const spDuration = document.getElementById("sp-duration");
+  const spVolume = document.getElementById("sp-volume");
   const spBtn = document.getElementById("sp-playpause");
 
+  // 再生・停止ボタンの同期
   function updatePlayButton() {
     spBtn.textContent = player.paused ? "▶" : "⏸";
   }
-
-  // 再生・停止イベントで同期
   player.addEventListener("play", updatePlayButton);
   player.addEventListener("pause", updatePlayButton);
 
-  // ボタンクリックで再生/停止を切り替え
   spBtn.addEventListener("click", () => {
     if (player.paused) {
       resumePlayback();
@@ -1132,7 +1149,38 @@ document.addEventListener("DOMContentLoaded", () => {
       stopPlayback();
     }
   });
+
+  // 再生中にシークバー更新
+  player.addEventListener("timeupdate", () => {
+    if (!isNaN(player.duration)) {
+      spSeek.max = player.duration;
+      spSeek.value = player.currentTime;
+    }
+    spCurrent.textContent = formatTime(player.currentTime);
+    spDuration.textContent = formatTime(player.duration);
+  });
+
+  // シークバー操作
+  spSeek.addEventListener("input", () => {
+    player.currentTime = spSeek.value;
+  });
+
+  // 音量操作
+  spVolume.addEventListener("input", () => {
+    player.volume = spVolume.value;
+  });
+
+  // 初期音量を同期
+  spVolume.value = player.volume;
+
+  function formatTime(sec) {
+    if (!sec || isNaN(sec)) return "0:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  }
 });
+
 
 </script>
 </body>
