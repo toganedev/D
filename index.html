@@ -371,6 +371,7 @@ body.spotify-mode .sp-right input[type=range]::-webkit-slider-thumb {
       <button onclick="resumePlayback()">▶ 続きから</button>
       <button onclick="toggleDarkMode()" id="darkmode-btn">🌙 ダークモード</button>
       <button onclick="toggleSpotifyMode()" id="spotify-btn">🎵 Spotify風OFF</button>
+         <button class="play-btn" id="sp-playpause">▶</button>
     </div>
     <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
@@ -425,7 +426,7 @@ body.spotify-mode .sp-right input[type=range]::-webkit-slider-thumb {
 </div>
 
 <footer>
-  ver5.1
+  ver5.2
 </footer>
 
 
@@ -983,13 +984,19 @@ function filterTracks() {
 }
 
 // === メディアセッション ===
-function updateMediaSession(fileKey, url) {
+function updateMediaSession(fileKey) {
   if ("mediaSession" in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: fileKey.split("/").pop(),
       artist: "togane_dev",
       album: "GitHub Music",
-      artwork: [{ src: "https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png", sizes: "512x512", type: "image/png" }]
+      artwork: [
+        {
+          src: "https://raw.githubusercontent.com/toganedev/D/refs/heads/main/aa.jpg",
+          sizes: "512x512",
+          type: "image/jpeg",
+        },
+      ],
     });
 
     navigator.mediaSession.setActionHandler("play", () => startPlayback());
@@ -998,6 +1005,7 @@ function updateMediaSession(fileKey, url) {
     navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
   }
 }
+
 
 // === PIP ===
 document.getElementById("pip-btn").addEventListener("click", async () => {
@@ -1058,6 +1066,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const nextName = nextTrackKey ? nextTrackKey.split("/").pop() : "なし";
     document.getElementById("now-playing").textContent =
       `再生中: ${currentName}\n次の曲: ${nextName}`;
+document.getElementById("sp-artwork").src =
+  "https://raw.githubusercontent.com/toganedev/D/refs/heads/main/aa.jpg";
 
     // Spotifyバーにも反映
     document.getElementById("sp-title").textContent = currentName;
@@ -1101,6 +1111,28 @@ document.addEventListener("DOMContentLoaded", async () => {
       return `${m}:${s}`;
     }
   });
+// === Spotify風 再生/一時停止ボタンを同期 ===
+document.addEventListener("DOMContentLoaded", () => {
+  const player = document.getElementById("player");
+  const spBtn = document.getElementById("sp-playpause");
+
+  function updatePlayButton() {
+    spBtn.textContent = player.paused ? "▶" : "⏸";
+  }
+
+  // 再生・停止イベントで同期
+  player.addEventListener("play", updatePlayButton);
+  player.addEventListener("pause", updatePlayButton);
+
+  // ボタンクリックで再生/停止を切り替え
+  spBtn.addEventListener("click", () => {
+    if (player.paused) {
+      resumePlayback();
+    } else {
+      stopPlayback();
+    }
+  });
+});
 
 </script>
 </body>
