@@ -355,13 +355,7 @@ body.spotify-mode .sp-title {
   overflow: hidden;
   position: relative;
 }
-body.spotify-mode .sp-title::after {
-  content: attr(title);
-  position: absolute;
-  left: 100%;
-  padding-left: 40px; /* 間隔 */
-  animation: scroll-text 12s linear infinite;
-}
+
 @keyframes scroll-text {
   from { transform: translateX(0); }
   to { transform: translateX(-100%); }
@@ -406,6 +400,20 @@ body.spotify-mode .sp-title::after {
   body.spotify-mode #video-player {
     bottom: calc(90px + 20px + env(safe-area-inset-bottom, 0));
   }
+}
+/* === Spotify風バー 曲名スクロール === */
+#sp-title {
+  display: inline-block;
+  max-width: 200px;   /* バー内で収まる幅を指定 */
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+  animation: scroll-text 12s linear infinite;
+}
+
+@keyframes scroll-text {
+  0%   { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
 }
 
   </style>
@@ -489,7 +497,7 @@ body.spotify-mode .sp-title::after {
 </div>
 
 <footer>
-  ver5.7
+  ver5.8
 </footer>
 
 
@@ -563,144 +571,141 @@ function updateJapanTime() {
 setInterval(updateJapanTime, 1000);
 
 // === 曲一覧読み込み ===
+// === 曲一覧読み込み ===
 async function loadTracks() {
-  tracks = [];
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
 
   try {
-    await buildFolderTree("", listContainer);
-  } catch (e) {
-    console.error("GitHub API失敗 → tracks.jsonを使う:", e);
+    // GitHub API 経由で取得
+    const res = await fetch("https://api.github.com/repos/toganedev/D/contents/");
+    if (!res.ok) throw new Error("GitHub API 失敗");
+
+    const data = await res.json();
+    const files = flattenFiles(data);
+
+    renderTrackList(files, listContainer);
+  } catch (err) {
+    console.warn("GitHub APIエラー、tracks.jsonから読み込み:", err);
+
     try {
       const res = await fetch(baseURL + "tracks.json");
-      if (!res.ok) throw new Error("tracks.jsonの読み込みに失敗");
+      if (!res.ok) throw new Error("tracks.jsonが読めない");
       const data = await res.json();
-      tracks = data;
-      renderFromJson(tracks, listContainer);
-    } catch (err) {
-      console.error("tracks.jsonも失敗:", err);
+
+      renderTrackList(data, listContainer);
+    } catch (jsonErr) {
+      console.error("tracks.json読み込みエラー:", jsonErr);
       listContainer.textContent = "曲一覧の読み込みに失敗しました。";
     }
   }
 }
-async function buildFolderTree(path, parentElement) {
-  const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`GitHub APIエラー: ${res.status}`);
-  const items = await res.json();
 
-  for (let item of items) {
-    if (item.type === "dir") {
-      const li = document.createElement("li");
-      const folder = document.createElement("div");
-      folder.textContent = item.name;
-      folder.className = "folder";
-      const nested = document.createElement("ul");
-      nested.className = "nested";
-
-      folder.addEventListener("click", async () => {
-        folder.classList.toggle("open");
-        nested.classList.toggle("open");
-        if (nested.childElementCount === 0) {
-          await buildFolderTree(path + item.name + "/", nested);
-        }
-      });
-
-      li.appendChild(folder);
-      li.appendChild(nested);
-      parentElement.appendChild(li);
-    } else if (
-      item.type === "file" &&
-      (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))
-    ) {
-      const fullKey = path + item.name;
-      if (!tracks.includes(fullKey)) tracks.push(fullKey);
-
-      const li = document.createElement("li");
-      const link = document.createElement("a");
-      link.href = "#";
-      link.textContent = item.name;
-      link.addEventListener("click", e => {
-        e.preventDefault();
-        playTrack(baseURL + fullKey, fullKey);
-      });
-
-      const favBtn = document.createElement("button");
-      favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
-      favBtn.style.marginLeft = "8px";
-      favBtn.style.border = "none";
-      favBtn.style.background = "transparent";
-      favBtn.style.cursor = "pointer";
-      favBtn.addEventListener("click", e => {
-        e.stopPropagation();
-        toggleFavorite(fullKey);
-        favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
-      });
-
-      li.appendChild(link);
-      li.appendChild(favBtn);
-
-      const hasLyrics = lyricsData.some(entry => entry.file === item.name);
-      if (hasLyrics) {
-        const lyricsBtn = document.createElement("button");
-        lyricsBtn.textContent = "歌詞";
-        lyricsBtn.className = "lyrics-btn";
-        lyricsBtn.addEventListener("click", e => {
-          e.stopPropagation();
-          showLyrics(item.name);
-        });
-        li.appendChild(lyricsBtn);
-      }
-
-      parentElement.appendChild(li);
+// === GitHub APIの再帰処理（簡易版） ===
+function flattenFiles(items, parent = "") {
+  let result = [];
+  items.forEach(item => {
+    if (item.type === "file" && (item.name.endsWith(".mp4") || item.name.endsWith(".m4a"))) {
+      result.push(parent + item.name);
     }
+    // ※サブフォルダはここでは無視（tracks.json fallbackで対応）
+  });
+  return result;
+}
+
+// === フォルダ分けしてDOM描画 ===
+
+// 1曲ぶんの <li> を作る共通関数
+function createTrackListItem(fullKey) {
+  const fileName = fullKey.split("/").pop();
+  const li = document.createElement("li");
+
+  // 曲リンク
+  const link = document.createElement("a");
+  link.href = "#";
+  link.textContent = fileName;
+  link.addEventListener("click", e => {
+    e.preventDefault();
+    playTrack(baseURL + fullKey, fullKey);
+  });
+  li.appendChild(link);
+
+  // ⭐ お気に入りボタン
+  const favBtn = document.createElement("button");
+  favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
+  favBtn.className = "fav-btn";
+  favBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    toggleFavorite(fullKey);
+    favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
+  });
+  li.appendChild(favBtn);
+
+  // 歌詞ボタン（lyricsDataにあるかチェック）
+  const hasLyrics = lyricsData.some(entry => entry.file === fileName);
+  if (hasLyrics) {
+    const lyricsBtn = document.createElement("button");
+    lyricsBtn.textContent = "歌詞";
+    lyricsBtn.className = "lyrics-btn";
+    lyricsBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      showLyrics(fileName);
+    });
+    li.appendChild(lyricsBtn);
   }
+
+  return li;
+}
+
+function renderTrackList(filePaths, container) {
+  const folders = {};
+
+  filePaths.forEach(path => {
+    if (!tracks.includes(path)) tracks.push(path); // tracksにも追加
+
+    const firstSlash = path.indexOf("/");
+    if (firstSlash === -1) {
+      if (!folders["その他"]) folders["その他"] = [];
+      folders["その他"].push(path);
+    } else {
+      const folder = path.substring(0, firstSlash);
+      if (!folders[folder]) folders[folder] = [];
+      folders[folder].push(path);
+    }
+  });
+
+  Object.keys(folders).forEach(folder => {
+    const li = document.createElement("li");
+    const folderDiv = document.createElement("div");
+    folderDiv.textContent = folder;
+    folderDiv.className = "folder";
+
+    const nested = document.createElement("ul");
+    nested.className = "nested";
+
+    folderDiv.addEventListener("click", () => {
+      folderDiv.classList.toggle("open");
+      nested.classList.toggle("open");
+    });
+
+    li.appendChild(folderDiv);
+    li.appendChild(nested);
+    container.appendChild(li);
+
+    folders[folder].forEach(fullKey => {
+      const trackLi = createTrackListItem(fullKey);
+      nested.appendChild(trackLi);
+    });
+  });
 }
 
 function renderFromJson(trackArray, parentElement) {
   trackArray.forEach(fullKey => {
-    const fileName = fullKey.split("/").pop();
-    const li = document.createElement("li");
-
-    const link = document.createElement("a");
-    link.href = "#";
-    link.textContent = fileName;
-    link.addEventListener("click", e => {
-      e.preventDefault();
-      playTrack(baseURL + fullKey, fullKey);
-    });
-
-    const favBtn = document.createElement("button");
-    favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
-    favBtn.style.marginLeft = "8px";
-    favBtn.style.border = "none";
-    favBtn.style.background = "transparent";
-    favBtn.style.cursor = "pointer";
-    favBtn.addEventListener("click", e => {
-      e.stopPropagation();
-      toggleFavorite(fullKey);
-      favBtn.textContent = favorites.includes(fullKey) ? "⭐" : "☆";
-    });
-
-    li.appendChild(link);
-    li.appendChild(favBtn);
-    
-    const hasLyrics = lyricsData.some(entry => entry.file === fileName);
-    if (hasLyrics) {
-      const lyricsBtn = document.createElement("button");
-      lyricsBtn.textContent = "歌詞";
-      lyricsBtn.className = "lyrics-btn";
-      lyricsBtn.addEventListener("click", e => {
-        e.stopPropagation();
-        showLyrics(fileName);
-      });
-      li.appendChild(lyricsBtn);
-    }
-
-    parentElement.appendChild(li);
+    const trackLi = createTrackListItem(fullKey);
+    parentElement.appendChild(trackLi);
   });
 }
+
 
 function getActiveList() {
   const openFolder = document.querySelector(".nested.open");
@@ -777,11 +782,6 @@ async function playTrack(url, fileKey) {
   };
 }
 
-function updateNowPlaying(trackName) {
-  const currentName = trackName.split("/").pop();
-  const nextName = nextTrackKey ? nextTrackKey.split("/").pop() : "なし";
-  document.getElementById("now-playing").textContent = `再生中: ${currentName}\n次の曲: ${nextName}`;
-}
 
 let isRandomMode = false;
 // === ランダム再生 ===
@@ -1122,18 +1122,27 @@ function toggleSpotifyMode() {
   bar.style.display = isOn ? "flex" : "none";
 }
 
-// 再生中の曲タイトルを更新
+// === 再生中の曲タイトルを更新 ===
 function updateNowPlaying(trackName) {
   const currentName = trackName.split("/").pop();
   const nextName = nextTrackKey ? nextTrackKey.split("/").pop() : "なし";
+
+  // 上部の「再生中」エリア
   document.getElementById("now-playing").textContent =
     `再生中: ${currentName}\n次の曲: ${nextName}`;
-  document.getElementById("sp-artwork").src =
-    "https://raw.githubusercontent.com/toganedev/D/refs/heads/main/aa.jpg";
 
-  // Spotifyバーにも反映
-  document.getElementById("sp-title").textContent = currentName;
+  // Spotify風バーにも反映
+  const spArtwork = document.getElementById("sp-artwork");
+  const spTitle = document.getElementById("sp-title");
+  if (spArtwork) {
+    spArtwork.src = "https://raw.githubusercontent.com/toganedev/D/refs/heads/main/aa.jpg";
+  }
+  if (spTitle) {
+    spTitle.textContent = currentName;
+    spTitle.setAttribute("title", currentName); // ← スクロール用に必須
+  }
 }
+
 
 // === Spotify風バーのシーク・音量同期 ===
 document.addEventListener("DOMContentLoaded", () => {
