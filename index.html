@@ -396,6 +396,17 @@ body.spotify-mode .sp-title::after {
     padding: 0.3rem 0.6rem;
   }
 }
+/* 通常（PC含む） */
+#video-player {
+  bottom: 10px;
+}
+
+/* Spotify風 + スマホ画面だけ上げる */
+@media (max-width: 768px) {
+  body.spotify-mode #video-player {
+    bottom: calc(90px + 20px + env(safe-area-inset-bottom, 0));
+  }
+}
 
   </style>
 </head>
@@ -478,7 +489,7 @@ body.spotify-mode .sp-title::after {
 </div>
 
 <footer>
-  ver5.6
+  ver5.7
 </footer>
 
 
