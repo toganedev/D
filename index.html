@@ -498,7 +498,7 @@ body.spotify-mode .sp-title span {
 </div>
 
 <footer>
-  ver6.1
+  ver6.2
 </footer>
 
 
@@ -653,17 +653,15 @@ function renderTrackList(filePaths, container) {
   filePaths.forEach(path => {
     if (!tracks.includes(path)) tracks.push(path); // tracksにも追加
 
-   const firstSlash = path.indexOf("/");
-if (firstSlash === -1) {
-  if (!folders["その他"]) folders["その他"] = [];
-  folders["その他"].push({ full: path, name: path });
-} else {
-  const folder = path.substring(0, firstSlash);    // 最初の / の前をフォルダ扱い
-  const file = path.substring(firstSlash + 1);     // 残り全部を曲名扱い
-  if (!folders[folder]) folders[folder] = [];
-  folders[folder].push({ full: path, name: file });
-}
-
+    const firstSlash = path.indexOf("/");
+    if (firstSlash === -1) {
+      if (!folders["その他"]) folders["その他"] = [];
+      folders["その他"].push(path);
+    } else {
+      const folder = path.substring(0, firstSlash);
+      if (!folders[folder]) folders[folder] = [];
+      folders[folder].push(path);
+    }
   });
 
   Object.keys(folders).forEach(folder => {
