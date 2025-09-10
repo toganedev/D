@@ -227,10 +227,57 @@
 </div>
 
 <footer>
-  ver4.7
+  ver4.8
 </footer>
 
+
+
 <script>
+
+  // === キーボードショートカット ===
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return; // 入力中は無効化
+
+  switch (e.key) {
+    case " ": // スペース
+      e.preventDefault();
+      const player = document.getElementById("player");
+      if (player.paused) {
+        resumePlayback();
+      } else {
+        stopPlayback();
+      }
+      break;
+
+    case "ArrowRight": // 次の曲
+      nextTrack();
+      break;
+
+    case "ArrowLeft": // 前の曲
+      prevTrack();
+      break;
+
+    case "r": // リピート切替
+    case "R":
+      toggleRepeat();
+      break;
+
+    case "f": // お気に入りモード切替
+    case "F":
+      toggleFavorites();
+      break;
+
+    case "l": // 歌詞を開く（今の曲が対応していれば）
+    case "L":
+      const nowTrack = currentList[currentIndex];
+      if (nowTrack) {
+        const fileName = nowTrack.split("/").pop();
+        showLyrics(fileName);
+      }
+      break;
+  }
+});
+  
 let tracks = []; 
 let currentList = [];
 let currentIndex = 0;
