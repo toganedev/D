@@ -211,6 +211,138 @@ body.dark-mode #lyrics-box {
   border: 1px solid #0ff;
   box-shadow: 0 0 15px #0ff;
 }
+/* === Spotify風モード === */
+body.spotify-mode {
+  background-color: #121212;
+  color: #fff;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  padding-bottom: 90px; /* 下のバーの高さ分余白を確保 */
+}
+
+/* ヘッダーは黒に */
+body.spotify-mode header {
+  background-color: #181818;
+  color: #fff;
+}
+
+/* 曲リストのリンク */
+body.spotify-mode a {
+  color: #fff;
+}
+body.spotify-mode a:hover {
+  color: #1db954;
+}
+
+/* 下部プレイヤーバー */
+body.spotify-mode #spotify-playerbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 90px;
+  background-color: #181818;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-top: 1px solid #282828;
+  z-index: 2000;
+}
+
+/* 左側：曲情報 */
+body.spotify-mode .sp-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+body.spotify-mode .sp-left img {
+  width: 56px;
+  height: 56px;
+  border-radius: 4px;
+}
+body.spotify-mode .sp-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+}
+body.spotify-mode .sp-artist {
+  font-size: 12px;
+  color: #b3b3b3;
+}
+
+/* 中央：操作ボタン群 */
+body.spotify-mode .sp-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+body.spotify-mode .sp-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+body.spotify-mode .sp-controls button {
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  font-size: 20px;
+  cursor: pointer;
+}
+body.spotify-mode .sp-controls button:hover {
+  color: #fff;
+}
+body.spotify-mode .sp-controls .play-btn {
+  font-size: 32px;
+  color: #fff;
+}
+
+/* 再生バー（ダミー進捗用） */
+body.spotify-mode .sp-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #b3b3b3;
+}
+body.spotify-mode .sp-progress input[type=range] {
+  flex: 1;
+  appearance: none;
+  height: 4px;
+  background: #404040;
+  border-radius: 2px;
+}
+body.spotify-mode .sp-progress input[type=range]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1db954;
+  cursor: pointer;
+}
+
+/* 右側：音量など */
+body.spotify-mode .sp-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+body.spotify-mode .sp-right input[type=range] {
+  width: 100px;
+  appearance: none;
+  height: 4px;
+  background: #404040;
+  border-radius: 2px;
+}
+body.spotify-mode .sp-right input[type=range]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1db954;
+  cursor: pointer;
+}
+
   </style>
 </head>
 <body>
@@ -238,6 +370,7 @@ body.dark-mode #lyrics-box {
       <button onclick="stopPlayback()">■ ストップ</button>
       <button onclick="resumePlayback()">▶ 続きから</button>
       <button onclick="toggleDarkMode()" id="darkmode-btn">🌙 ダークモード</button>
+      <button onclick="toggleSpotifyMode()" id="spotify-btn">🎵 Spotify風OFF</button>
     </div>
     <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
@@ -262,8 +395,37 @@ body.dark-mode #lyrics-box {
   </div>
 </div>
 
+  <!-- Spotify風プレイヤーバー -->
+<div id="spotify-playerbar" style="display:none;">
+  <div class="sp-left">
+    <img src="https://raw.githubusercontent.com/toganedev/D/main/discord_icon.png" id="sp-artwork">
+    <div>
+      <div class="sp-title" id="sp-title">曲名</div>
+      <div class="sp-artist">togane_dev</div>
+    </div>
+  </div>
+  <div class="sp-center">
+    <div class="sp-controls">
+      <button onclick="prevTrack()">⏮</button>
+      <button class="play-btn" onclick="resumePlayback()">▶</button>
+      <button onclick="stopPlayback()">⏸</button>
+      <button onclick="nextTrack()">⏭</button>
+      <button onclick="toggleRepeat()">🔁</button>
+    </div>
+    <div class="sp-progress">
+      <span id="sp-current">0:00</span>
+      <input type="range" id="sp-seek" min="0" value="0">
+      <span id="sp-duration">0:00</span>
+    </div>
+  </div>
+  <div class="sp-right">
+    <span>🔊</span>
+    <input type="range" id="sp-volume" min="0" max="1" step="0.01" value="1">
+  </div>
+</div>
+
 <footer>
-  ver5.0
+  ver5.1
 </footer>
 
 
@@ -878,6 +1040,68 @@ document.addEventListener("DOMContentLoaded", async () => {
     ? "☀ ライトモード"
     : "🌙 ダークモード";
 }
+
+  // Spotify風モード切り替え
+  function toggleSpotifyMode() {
+    document.body.classList.toggle("spotify-mode");
+    const btn = document.getElementById("spotify-btn");
+    const bar = document.getElementById("spotify-playerbar");
+    const isOn = document.body.classList.contains("spotify-mode");
+
+    btn.textContent = isOn ? "🎵 Spotify風ON" : "🎵 Spotify風OFF";
+    bar.style.display = isOn ? "flex" : "none";
+  }
+
+  // 再生中の曲タイトルを更新
+  function updateNowPlaying(trackName) {
+    const currentName = trackName.split("/").pop();
+    const nextName = nextTrackKey ? nextTrackKey.split("/").pop() : "なし";
+    document.getElementById("now-playing").textContent =
+      `再生中: ${currentName}\n次の曲: ${nextName}`;
+
+    // Spotifyバーにも反映
+    document.getElementById("sp-title").textContent = currentName;
+  }
+
+  // === Spotify風バーのシーク・音量同期 ===
+  document.addEventListener("DOMContentLoaded", () => {
+    const player = document.getElementById("player");
+    const spSeek = document.getElementById("sp-seek");
+    const spCurrent = document.getElementById("sp-current");
+    const spDuration = document.getElementById("sp-duration");
+    const spVolume = document.getElementById("sp-volume");
+
+    // 再生中にシークバー更新
+    player.addEventListener("timeupdate", () => {
+      if (!isNaN(player.duration)) {
+        spSeek.max = player.duration;
+        spSeek.value = player.currentTime;
+      }
+      spCurrent.textContent = formatTime(player.currentTime);
+      spDuration.textContent = formatTime(player.duration);
+    });
+
+    // シークバーを操作したら反映
+    spSeek.addEventListener("input", () => {
+      player.currentTime = spSeek.value;
+    });
+
+    // 音量バーを操作したら反映
+    spVolume.addEventListener("input", () => {
+      player.volume = spVolume.value;
+    });
+
+    // ページ読み込み時に音量バー初期化
+    spVolume.value = player.volume;
+
+    function formatTime(sec) {
+      if (!sec || isNaN(sec)) return "0:00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60).toString().padStart(2, "0");
+      return `${m}:${s}`;
+    }
+  });
+
 </script>
 </body>
 </html>
