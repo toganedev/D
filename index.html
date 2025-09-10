@@ -459,13 +459,12 @@ body.spotify-mode .sp-title::after {
     </div>
   </div>
   <div class="sp-center">
-    <div class="sp-controls">
-      <button onclick="prevTrack()">⏮</button>
-      <button class="play-btn" onclick="resumePlayback()">▶</button>
-      <button onclick="stopPlayback()">⏸</button>
-      <button onclick="nextTrack()">⏭</button>
-      <button onclick="toggleRepeat()">🔁</button>
-    </div>
+   <div class="sp-controls">
+  <button onclick="prevTrack()">⏮</button>
+  <button class="play-btn" id="sp-playpause">▶</button>
+  <button onclick="nextTrack()">⏭</button>
+  <button onclick="toggleRepeat()">🔁</button>
+</div>
     <div class="sp-progress">
       <span id="sp-current">0:00</span>
       <input type="range" id="sp-seek" min="0" value="0">
@@ -479,7 +478,7 @@ body.spotify-mode .sp-title::after {
 </div>
 
 <footer>
-  ver5.4
+  ver5.5
 </footer>
 
 
@@ -1085,14 +1084,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   updateJapanTime();
 });
-    if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register("./service-worker.js")
-        .then(() => console.log("Service Worker registered"))
-        .catch(err => console.error("SW registration failed:", err));
-    });
-  }
+ if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (let reg of registrations) {
+      reg.unregister();
+    }
+  });
+}
 
   function toggleDarkMode() {
   document.body.classList.toggle("dark-mode");
