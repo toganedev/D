@@ -498,7 +498,7 @@ body.spotify-mode .sp-title span {
 </div>
 
 <footer>
-  ver5.9
+  ver6.0
 </footer>
 
 
@@ -577,30 +577,16 @@ async function loadTracks() {
   listContainer.innerHTML = "";
 
   try {
-    const res = await fetch("https://api.github.com/repos/toganedev/D/contents/");
-    if (!res.ok) throw new Error("GitHub API 失敗");
-
+    // 直接 tracks.json を読む
+    const res = await fetch(baseURL + "tracks.json");
+    if (!res.ok) throw new Error("tracks.jsonが読めない");
     const data = await res.json();
-    const files = flattenFiles(data);
 
-    // ←ここで必ず allTracksFromJson に入れる
-    allTracksFromJson = files;
-
-    renderTrackList(files, listContainer);
+    allTracksFromJson = data;
+    renderTrackList(data, listContainer);
   } catch (err) {
-    console.warn("GitHub APIエラー、tracks.jsonから読み込み:", err);
-
-    try {
-      const res = await fetch(baseURL + "tracks.json");
-      if (!res.ok) throw new Error("tracks.jsonが読めない");
-      const data = await res.json();
-
-      allTracksFromJson = data; // ←ここも追加！
-      renderTrackList(data, listContainer);
-    } catch (jsonErr) {
-      console.error("tracks.json読み込みエラー:", jsonErr);
-      listContainer.textContent = "曲一覧の読み込みに失敗しました。";
-    }
+    console.error("曲一覧読み込みエラー:", err);
+    listContainer.textContent = "曲一覧の読み込みに失敗しました。";
   }
 }
 
