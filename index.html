@@ -176,6 +176,41 @@
     .nested.open {
       display: block;
     }
+    /* === ダークモード === */
+body.dark-mode {
+  background-color: #000;
+  color: #0ff; /* 蛍光シアン */
+}
+
+body.dark-mode header {
+  background: linear-gradient(90deg, #0ff, #f0f, #0f0);
+  color: #000;
+}
+
+body.dark-mode a {
+  color: #0ff;
+  text-shadow: 0 0 8px #0ff;
+}
+
+body.dark-mode .controls button {
+  background: transparent;
+  border: 1px solid #0ff;
+  color: #0ff;
+  box-shadow: 0 0 10px #0ff, 0 0 20px #0ff inset;
+}
+
+body.dark-mode .controls button:hover {
+  background: #0ff;
+  color: #000;
+  text-shadow: none;
+}
+
+body.dark-mode #lyrics-box {
+  background: #111;
+  color: #0ff;
+  border: 1px solid #0ff;
+  box-shadow: 0 0 15px #0ff;
+}
   </style>
 </head>
 <body>
@@ -202,6 +237,7 @@
       <button onclick="startPlayback()">▶ スタート</button>
       <button onclick="stopPlayback()">■ ストップ</button>
       <button onclick="resumePlayback()">▶ 続きから</button>
+      <button onclick="toggleDarkMode()" id="darkmode-btn">🌙 ダークモード</button>
     </div>
     <div class="search-bar">
       <input type="text" id="search" placeholder="曲名検索..." oninput="filterTracks()">
@@ -227,7 +263,7 @@
 </div>
 
 <footer>
-  ver4.8
+  ver5.0
 </footer>
 
 
@@ -826,7 +862,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   updateJapanTime();
 });
-  
+    if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("./service-worker.js")
+        .then(() => console.log("Service Worker registered"))
+        .catch(err => console.error("SW registration failed:", err));
+    });
+  }
+
+  function toggleDarkMode() {
+  document.body.classList.toggle("dark-mode");
+  const btn = document.getElementById("darkmode-btn");
+  btn.textContent = document.body.classList.contains("dark-mode")
+    ? "☀ ライトモード"
+    : "🌙 ダークモード";
+}
 </script>
 </body>
 </html>
