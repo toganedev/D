@@ -355,12 +355,6 @@ body.spotify-mode .sp-title {
   overflow: hidden;
   position: relative;
 }
-
-@keyframes scroll-text {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100%); }
-}
-
 /* === スマホ対応 === */
 @media (max-width: 600px) {
   body.spotify-mode #spotify-playerbar {
@@ -401,19 +395,26 @@ body.spotify-mode .sp-title {
     bottom: calc(90px + 20px + env(safe-area-inset-bottom, 0));
   }
 }
-/* === Spotify風バー 曲名スクロール === */
-#sp-title {
+ /* === Spotify風バー 曲名スクロール修正版 === */
+  body.spotify-mode .sp-title {
+    position: relative;
+    display: block;
+    width: 160px;
+    height: 20px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+body.spotify-mode .sp-title span {
   display: inline-block;
-  max-width: 200px;   /* バー内で収まる幅を指定 */
-  white-space: nowrap;
-  overflow: hidden;
-  box-sizing: border-box;
+  padding-left: 100%; /* 右外から出発 */
   animation: scroll-text 12s linear infinite;
 }
 
 @keyframes scroll-text {
-  0%   { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
+  0%   { transform: translateX(0); }
+  10%  { transform: translateX(0); } /* 右で一時停止 */
+  90%  { transform: translateX(calc(-1 * var(--scroll-distance))); }
+  100% { transform: translateX(calc(-1 * var(--scroll-distance))); } /* 左で停止後リセット */
 }
 
   </style>
@@ -473,7 +474,7 @@ body.spotify-mode .sp-title {
   <div class="sp-left">
     <img src="https://raw.githubusercontent.com/toganedev/D/refs/heads/main/aa.jpg" id="sp-artwork">
     <div>
-      <div class="sp-title" id="sp-title">曲名</div>
+     <div class="sp-title" id="sp-title"><span>曲名</span></div>
       <div class="sp-artist">togane_dev</div>
     </div>
   </div>
@@ -497,7 +498,7 @@ body.spotify-mode .sp-title {
 </div>
 
 <footer>
-  ver5.8
+  ver5.9
 </footer>
 
 
@@ -571,18 +572,19 @@ function updateJapanTime() {
 setInterval(updateJapanTime, 1000);
 
 // === 曲一覧読み込み ===
-// === 曲一覧読み込み ===
 async function loadTracks() {
   const listContainer = document.getElementById("track-list");
   listContainer.innerHTML = "";
 
   try {
-    // GitHub API 経由で取得
     const res = await fetch("https://api.github.com/repos/toganedev/D/contents/");
     if (!res.ok) throw new Error("GitHub API 失敗");
 
     const data = await res.json();
     const files = flattenFiles(data);
+
+    // ←ここで必ず allTracksFromJson に入れる
+    allTracksFromJson = files;
 
     renderTrackList(files, listContainer);
   } catch (err) {
@@ -593,6 +595,7 @@ async function loadTracks() {
       if (!res.ok) throw new Error("tracks.jsonが読めない");
       const data = await res.json();
 
+      allTracksFromJson = data; // ←ここも追加！
       renderTrackList(data, listContainer);
     } catch (jsonErr) {
       console.error("tracks.json読み込みエラー:", jsonErr);
@@ -600,6 +603,7 @@ async function loadTracks() {
     }
   }
 }
+
 
 // === GitHub APIの再帰処理（簡易版） ===
 function flattenFiles(items, parent = "") {
@@ -1138,8 +1142,8 @@ function updateNowPlaying(trackName) {
     spArtwork.src = "https://raw.githubusercontent.com/toganedev/D/refs/heads/main/aa.jpg";
   }
   if (spTitle) {
-    spTitle.textContent = currentName;
-    spTitle.setAttribute("title", currentName); // ← スクロール用に必須
+    spTitle.innerHTML = `<span>${currentName}</span>`;
+    applyScrollingToTitle();   // ←ここで呼ぶ
   }
 }
 
@@ -1198,6 +1202,23 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${m}:${s}`;
   }
 });
+// === 曲名スクロール調整 ===
+function applyScrollingToTitle() {
+  const spTitle = document.querySelector("#sp-title span");
+  if (!spTitle) return;
+
+  const container = spTitle.parentElement;
+  const textWidth = spTitle.scrollWidth;
+  const containerWidth = container.clientWidth;
+
+  if (textWidth > containerWidth) {
+    const distance = textWidth - containerWidth; // はみ出し量
+    spTitle.style.animation = `scroll-text 12s linear infinite`;
+    spTitle.style.setProperty("--scroll-distance", `${distance}px`);
+  } else {
+    spTitle.style.animation = "none"; // 短い曲名ならスクロール不要
+  }
+}
 
 
 </script>
